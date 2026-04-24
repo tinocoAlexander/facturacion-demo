@@ -1,12 +1,14 @@
-import { Module, Global } from '@nestjs/common';
-import { ConfigModule, ConfigService } from '@nestjs/config';
+import { Module, Global, Inject } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Pool } from 'pg';
+import { MigrationRunner } from './migration.runner';
+import { DATABASE_POOL } from './database.constants';
 
 @Global()
 @Module({
   providers: [
     {
-      provide: 'DATABASE_POOL',
+      provide: DATABASE_POOL,
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => {
         const password = configService.get<string>('DB_PASSWORD');
@@ -28,7 +30,8 @@ import { Pool } from 'pg';
         return pool;
       },
     },
+    MigrationRunner,
   ],
-  exports: ['DATABASE_POOL'],
+  exports: [DATABASE_POOL, MigrationRunner],
 })
 export class DatabaseModule {}
