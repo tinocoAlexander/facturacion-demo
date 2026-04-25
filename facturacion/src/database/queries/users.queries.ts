@@ -39,4 +39,49 @@ export const USER_QUERIES = {
   EMAIL_EXISTS: `
     SELECT 1 FROM users WHERE email = $1 LIMIT 1
   `,
+
+  UPDATE_PROFILE: `
+    UPDATE users
+    SET full_name = $1
+    WHERE id = $2
+      AND is_active = true
+    RETURNING id, email, full_name, role, is_active,
+              last_login_at, created_at, updated_at
+  `,
+
+  CHANGE_PASSWORD: `
+    UPDATE users
+    SET password_hash = $1
+    WHERE id = $2
+      AND is_active = true
+    RETURNING id
+  `,
+
+  SET_ACTIVE_STATUS: `
+    UPDATE users
+    SET is_active = $1
+    WHERE id = $2
+    RETURNING id, email, full_name, role, is_active,
+              last_login_at, created_at, updated_at
+  `,
+
+  SET_ROLE: `
+    UPDATE users
+    SET role = $1
+    WHERE id = $2
+    RETURNING id, email, full_name, role, is_active,
+              last_login_at, created_at, updated_at
+  `,
+
+  FIND_ALL_PAGINATED: `
+    SELECT id, email, full_name, role, is_active,
+           last_login_at, created_at, updated_at
+    FROM users
+    ORDER BY created_at DESC
+    LIMIT $1 OFFSET $2
+  `,
+
+  COUNT_ALL: `
+    SELECT COUNT(*)::int AS total FROM users
+  `,
 } as const;

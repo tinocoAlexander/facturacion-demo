@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { Pool } from 'pg';
 import { MigrationRunner } from './migration.runner';
 import { DATABASE_POOL } from './database.constants';
+import { DatabaseShutdown } from './database.shutdown';
 
 @Global()
 @Module({
@@ -18,9 +19,11 @@ import { DATABASE_POOL } from './database.constants';
           database: configService.get<string>('DB_NAME'),
           password: configService.get<string>('DB_PASSWORD'),
           port: configService.get<number>('DB_PORT', 5432),
-          max: 20, 
-          idleTimeoutMillis: 30000,
-          connectionTimeoutMillis: 2000,
+          max: configService.get<number>('DB_POOL_MAX') ?? 20,
+          idleTimeoutMillis:
+            configService.get<number>('DB_POOL_IDLE_TIMEOUT_MS') ?? 30000,
+          connectionTimeoutMillis:
+            configService.get<number>('DB_POOL_CONNECTION_TIMEOUT_MS') ?? 2000,
         });
         
         pool.on('error', (err) => {
@@ -31,6 +34,7 @@ import { DATABASE_POOL } from './database.constants';
       },
     },
     MigrationRunner,
+    DatabaseShutdown,
   ],
   exports: [DATABASE_POOL, MigrationRunner],
 })

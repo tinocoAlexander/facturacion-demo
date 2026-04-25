@@ -55,7 +55,7 @@ export class MigrationRunner implements OnApplicationBootstrap {
         this.logger.log(`Done: ${file}`);
       }
     } catch (error) {
-      this.logger.error('Migration failed', error.message);
+      this.logger.error('Migration failed', (error as Error).message);
       throw error;  
     } finally {
       client.release();
