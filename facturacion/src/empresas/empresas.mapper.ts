@@ -1,5 +1,5 @@
 import { Empresa } from './empresas.types';
-import { ResponseEmpresaDto } from './dtos/response-empresa.dto.js';
+import { ResponseEmpresaDto } from './dtos/response-empresa.dto';
 
 export function mapToResponseEmpresaDto(empresa: Empresa): ResponseEmpresaDto {
   return {

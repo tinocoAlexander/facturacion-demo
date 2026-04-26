@@ -1,6 +1,6 @@
 import { Injectable, Logger, HttpStatus, Inject } from '@nestjs/common';
 import { AuditService } from '../../audit/audit.service';
-import { UpdateEmpresaDto, ResponseEmpresaDto } from '../dtos/index.js';
+import { UpdateEmpresaDto, ResponseEmpresaDto } from '../dtos';
 import { I_EMPRESAS_REPOSITORY } from '../interfaces/empresas-repository.interface';
 import type { IEmpresasRepository } from '../interfaces/empresas-repository.interface';
 import { mapToResponseEmpresaDto } from '../empresas.mapper';

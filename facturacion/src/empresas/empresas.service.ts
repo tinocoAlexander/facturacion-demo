@@ -5,7 +5,7 @@ import {
   CreateEmpresaDto,
   UpdateEmpresaDto,
   ResponseEmpresaDto,
-} from './dtos/index.js';
+} from './dtos';
 import { I_EMPRESAS_REPOSITORY } from './interfaces/empresas-repository.interface';
 import type { IEmpresasRepository } from './interfaces/empresas-repository.interface';
 import { mapToResponseEmpresaDto } from './empresas.mapper';

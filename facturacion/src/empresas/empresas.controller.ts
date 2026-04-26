@@ -33,7 +33,7 @@ import {
   ResponseEmpresaDto,
   AssignUserDto,
   SetActiveDto,
-} from './dtos/index.js';
+} from './dtos';
 import { mapToResponseEmpresaDto } from './empresas.mapper';
 
 @ApiTags('empresas')
