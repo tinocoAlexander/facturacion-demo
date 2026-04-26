@@ -275,7 +275,6 @@ describe('API (e2e)', () => {
 
     let adminToken: string;
     let userToken: string;
-    let userId: number;
     const ip = randomIp();
 
     beforeAll(async () => {
@@ -299,12 +298,11 @@ describe('API (e2e)', () => {
 
       // Create normal user
       const userEmail = randomEmail();
-      const userRes = await request(app.getHttpServer())
+      await request(app.getHttpServer())
         .post(api('/auth/register'))
         .set('X-Forwarded-For', ip)
         .send({ email: userEmail, password, fullName: 'User Empresa' })
         .expect(201);
-      userId = (userRes.body as { id: number }).id;
       const userLoginRes = await request(app.getHttpServer())
         .post(api('/auth/login'))
         .set('X-Forwarded-For', ip)
