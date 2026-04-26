@@ -9,7 +9,7 @@ import { tap } from 'rxjs/operators';
 import { MetricsService } from '../../metrics/metrics.service';
 import type { Request, Response } from 'express';
 
-type ExtendedRequest = Request & {
+type ExtendedRequest = Omit<Request, 'route'> & {
   route?: {
     path?: string;
   };
@@ -42,7 +42,7 @@ export class MetricsInterceptor implements NestInterceptor {
         // En NestJS con Express, está en request.route.path
         const route = request.route?.path || url;
 
-        this.metrics.recordHttpRequest(method, route, statusCode, duration);
+        this.metrics.recordHttpRequest(String(method), String(route), statusCode, duration);
       }),
     );
   }
