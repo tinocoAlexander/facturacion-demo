@@ -38,7 +38,10 @@ describe('API (e2e)', () => {
     // En tests no corre main.ts, así que replicamos el prefijo global
     app.setGlobalPrefix('api/v1');
     // Determinismo para throttling por IP
-    (app as any).set('trust proxy', 1);
+    const httpInstance = app.getHttpAdapter().getInstance() as {
+      set: (key: string, value: unknown) => void;
+    };
+    httpInstance.set('trust proxy', 1);
     await app.init();
 
     pool = app.get<Pool>(DATABASE_POOL);
@@ -62,24 +65,30 @@ describe('API (e2e)', () => {
       .post(api('/auth/register'))
       .send({ email, password, fullName: 'Test User' })
       .expect(201);
+    const registerBody = registerRes.body as { id: number; email: string };
     expect(registerRes.body).toHaveProperty('id');
-    expect(registerRes.body.email).toBe(email);
+    expect(registerBody.email).toBe(email);
 
     // login
     const loginRes = await request(app.getHttpServer())
       .post(api('/auth/login'))
       .send({ email, password })
       .expect(200);
+    const loginBody = loginRes.body as {
+      accessToken: string;
+      refreshToken: string;
+    };
     expect(loginRes.body).toHaveProperty('accessToken');
     expect(loginRes.body).toHaveProperty('refreshToken');
-    const token = loginRes.body.accessToken as string;
+    const token = loginBody.accessToken;
 
     // me
     const meRes = await request(app.getHttpServer())
       .get(api('/auth/me'))
       .set('Authorization', `Bearer ${token}`)
       .expect(200);
-    expect(meRes.body.email).toBe(email);
+    const meBody = meRes.body as { email: string };
+    expect(meBody.email).toBe(email);
 
     // update profile
     const updatedRes = await request(app.getHttpServer())
@@ -87,7 +96,8 @@ describe('API (e2e)', () => {
       .set('Authorization', `Bearer ${token}`)
       .send({ fullName: 'Test User Updated' })
       .expect(200);
-    expect(updatedRes.body.fullName).toBe('Test User Updated');
+    const updatedBody = updatedRes.body as { fullName: string };
+    expect(updatedBody.fullName).toBe('Test User Updated');
 
     // change password
     await request(app.getHttpServer())
@@ -119,7 +129,8 @@ describe('API (e2e)', () => {
       .send({ email, password })
       .expect(200);
 
-    const refreshToken1 = loginRes.body.refreshToken as string;
+    const loginBody = loginRes.body as { refreshToken: string };
+    const refreshToken1 = loginBody.refreshToken;
     expect(typeof refreshToken1).toBe('string');
 
     const refreshRes = await request(app.getHttpServer())
@@ -127,7 +138,11 @@ describe('API (e2e)', () => {
       .send({ refreshToken: refreshToken1 })
       .expect(200);
 
-    const refreshToken2 = refreshRes.body.refreshToken as string;
+    const refreshBody = refreshRes.body as {
+      accessToken: string;
+      refreshToken: string;
+    };
+    const refreshToken2 = refreshBody.refreshToken;
     expect(refreshRes.body).toHaveProperty('accessToken');
     expect(typeof refreshToken2).toBe('string');
     expect(refreshToken2).not.toBe(refreshToken1);
@@ -162,7 +177,8 @@ describe('API (e2e)', () => {
       .post(api('/auth/login'))
       .send({ email, password })
       .expect(200);
-    const userToken = loginRes.body.accessToken as string;
+    const userLoginBody = loginRes.body as { accessToken: string };
+    const userToken = userLoginBody.accessToken;
 
     await request(app.getHttpServer())
       .get(api('/users'))
@@ -189,7 +205,8 @@ describe('API (e2e)', () => {
       .post(api('/auth/login'))
       .send({ email: adminEmail, password })
       .expect(200);
-    const adminToken = adminLoginRes.body.accessToken as string;
+    const adminLoginBody = adminLoginRes.body as { accessToken: string };
+    const adminToken = adminLoginBody.accessToken;
 
     const listRes = await request(app.getHttpServer())
       .get(api('/users?page=1&limit=10'))
@@ -201,7 +218,8 @@ describe('API (e2e)', () => {
       .get(api('/audit/logs?page=1&limit=10'))
       .set('Authorization', `Bearer ${adminToken}`)
       .expect(200);
-    expect(Array.isArray(auditRes.body.data)).toBe(true);
+    const auditBody = auditRes.body as { data: unknown[] };
+    expect(Array.isArray(auditBody.data)).toBe(true);
     expect(auditRes.body).toHaveProperty('meta');
 
     const newEmail = randomEmail();
@@ -214,7 +232,8 @@ describe('API (e2e)', () => {
         fullName: 'Created By Admin',
       })
       .expect(201);
-    expect(createRes.body.email).toBe(newEmail);
+    const createBody = createRes.body as { email: string };
+    expect(createBody.email).toBe(newEmail);
   });
 
   it('throttling: /auth/register returns 429 after limit', async () => {

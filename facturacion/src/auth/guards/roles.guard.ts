@@ -6,6 +6,9 @@ import {
   SetMetadata,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
+import type { Request } from 'express';
+
+type RequestWithUser = Request & { user?: { role?: string } };
 
 export const ROLES_KEY = 'roles';
 
@@ -25,9 +28,10 @@ export class RolesGuard implements CanActivate {
     // Si el endpoint no tiene @Roles(), cualquiera puede acceder
     if (!requiredRoles || requiredRoles.length === 0) return true;
 
-    const { user } = context.switchToHttp().getRequest();
+    const { user } = context.switchToHttp().getRequest<RequestWithUser>();
 
-    if (!user || !requiredRoles.includes(user.role)) {
+    const role = user?.role;
+    if (!role || !requiredRoles.includes(role)) {
       throw new ForbiddenException('No tienes permiso para esta acción');
     }
 

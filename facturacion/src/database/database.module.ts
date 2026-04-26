@@ -1,4 +1,4 @@
-import { Module, Global, Inject } from '@nestjs/common';
+import { Module, Global } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Pool } from 'pg';
 import { MigrationRunner } from './migration.runner';
@@ -12,13 +12,15 @@ import { DatabaseShutdown } from './database.shutdown';
       provide: DATABASE_POOL,
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => {
-        const password = configService.get<string>('DB_PASSWORD');
+        const statementTimeoutMs =
+          configService.get<number>('DB_STATEMENT_TIMEOUT_MS') ?? 15000;
         const pool = new Pool({
           user: configService.get<string>('DB_USER'),
           host: configService.get<string>('DB_HOST', 'localhost'),
           database: configService.get<string>('DB_NAME'),
           password: configService.get<string>('DB_PASSWORD'),
           port: configService.get<number>('DB_PORT', 5432),
+          options: `-c statement_timeout=${statementTimeoutMs}`,
           max: configService.get<number>('DB_POOL_MAX') ?? 20,
           idleTimeoutMillis:
             configService.get<number>('DB_POOL_IDLE_TIMEOUT_MS') ?? 30000,

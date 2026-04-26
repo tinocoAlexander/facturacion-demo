@@ -20,7 +20,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   // Este método solo corre si el token ya fue verificado como válido
-  async validate(payload: JwtPayload) {
+  validate(payload: JwtPayload) {
     if (!payload.sub) throw new UnauthorizedException();
     return { id: payload.sub, email: payload.email, role: payload.role };
   }

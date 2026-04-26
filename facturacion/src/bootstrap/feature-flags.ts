@@ -15,7 +15,7 @@ export function isEnabled(
   key: string,
   isProduction: boolean,
 ): boolean {
-  const raw = config.get(key);
+  const raw: unknown = config.get(key);
 
   return (
     raw === true ||

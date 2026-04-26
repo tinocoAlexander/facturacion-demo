@@ -13,6 +13,8 @@ export class UpdateProfileDto {
   @IsNotEmpty({ message: 'Nombre completo es requerido' })
   @MinLength(2, { message: 'Nombre debe tener mínimo 2 caracteres' })
   @MaxLength(100, { message: 'Nombre no puede exceder 100 caracteres' })
-  @Transform(({ value }) => value?.trim())
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
   fullName!: string;
 }

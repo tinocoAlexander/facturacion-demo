@@ -22,6 +22,16 @@ import { AuthService } from './auth.service';
 import { CreateUserDto } from '../users/dtos';
 import { AuthResponseDto, LoginDto, RefreshTokenDto } from './dtos';
 import { JwtAuthGuard } from './guards/jwt.guard';
+import type { Request as ExpressRequest } from 'express';
+
+type RequestWithUser = ExpressRequest & { user?: { id: number } };
+
+function getUserAgent(req: ExpressRequest): string | undefined {
+  const raw = req.headers['user-agent'];
+  if (typeof raw === 'string') return raw;
+  if (Array.isArray(raw)) return raw[0];
+  return undefined;
+}
 
 @ApiTags('auth')
 @Controller('auth')
@@ -48,10 +58,10 @@ export class AuthController {
   @ApiBody({ type: CreateUserDto })
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
-  register(@Request() req: any, @Body() dto: CreateUserDto) {
+  register(@Request() req: ExpressRequest, @Body() dto: CreateUserDto) {
     return this.authService.register(dto, {
       ip: req.ip,
-      userAgent: req.headers?.['user-agent'],
+      userAgent: getUserAgent(req),
     });
   }
 
@@ -66,9 +76,9 @@ export class AuthController {
   @ApiBody({ type: LoginDto })
   @Post('login')
   @HttpCode(HttpStatus.OK)
-  login(@Request() req: any, @Body() dto: LoginDto) {
+  login(@Request() req: ExpressRequest, @Body() dto: LoginDto) {
     // Express: req.ip depende de trust proxy en producción
-    return this.authService.login(dto, req.ip, req.headers?.['user-agent']);
+    return this.authService.login(dto, req.ip, getUserAgent(req));
   }
 
   @ApiOperation({ summary: 'Refrescar sesión (rotación de refresh token)' })
@@ -77,8 +87,8 @@ export class AuthController {
   @ApiBody({ type: RefreshTokenDto })
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
-  refresh(@Request() req: any, @Body() dto: RefreshTokenDto) {
-    return this.authService.refresh(dto, req.ip, req.headers?.['user-agent']);
+  refresh(@Request() req: ExpressRequest, @Body() dto: RefreshTokenDto) {
+    return this.authService.refresh(dto, req.ip, getUserAgent(req));
   }
 
   @ApiOperation({ summary: 'Cerrar sesión (revocar refresh token)' })
@@ -92,10 +102,10 @@ export class AuthController {
   @ApiBody({ type: RefreshTokenDto })
   @Post('logout')
   @HttpCode(HttpStatus.OK)
-  logout(@Request() req: any, @Body() dto: RefreshTokenDto) {
+  logout(@Request() req: ExpressRequest, @Body() dto: RefreshTokenDto) {
     return this.authService.logout(dto, {
       ip: req.ip,
-      userAgent: req.headers?.['user-agent'],
+      userAgent: getUserAgent(req),
     });
   }
 
@@ -122,7 +132,7 @@ export class AuthController {
   @ApiUnauthorizedResponse({ description: 'JWT inválido o ausente' })
   @Get('me')
   @UseGuards(JwtAuthGuard)
-  getProfile(@Request() req: any) {
-    return this.authService.getProfile(req.user.id);
+  getProfile(@Request() req: RequestWithUser) {
+    return this.authService.getProfile(req.user!.id);
   }
 }

@@ -1,16 +1,10 @@
-import {
-  BadRequestException,
-  ConflictException,
-  ForbiddenException,
-  Injectable,
-  Logger,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable, Logger, HttpStatus } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { AuditService } from '../../audit/audit.service';
 import { CreateUserDto, ResponseUserDto } from '../dtos';
 import { UsersRepository } from '../users.repository';
 import { mapToResponseUserDto } from '../users.mapper';
+import { httpError } from '../../common/errors/http-error';
 
 @Injectable()
 export class UsersAdminService {
@@ -33,7 +27,11 @@ export class UsersAdminService {
       this.logger.warn(
         `Intento de crear usuario con email existente: ${email}`,
       );
-      throw new ConflictException('El email ya está registrado');
+      throw httpError(
+        HttpStatus.CONFLICT,
+        'USERS_EMAIL_ALREADY_REGISTERED',
+        'El email ya está registrado',
+      );
     }
 
     try {
@@ -55,7 +53,11 @@ export class UsersAdminService {
       return mapToResponseUserDto(user);
     } catch (error) {
       this.logger.error(`Error al crear usuario: ${(error as Error).message}`);
-      throw new BadRequestException('Error al crear el usuario');
+      throw httpError(
+        HttpStatus.BAD_REQUEST,
+        'USERS_CREATE_FAILED',
+        'Error al crear el usuario',
+      );
     }
   }
 
@@ -65,14 +67,23 @@ export class UsersAdminService {
     isActive: boolean,
   ): Promise<ResponseUserDto> {
     if (adminId === targetUserId && !isActive) {
-      throw new ForbiddenException('No puedes desactivar tu propia cuenta');
+      throw httpError(
+        HttpStatus.FORBIDDEN,
+        'USERS_CANNOT_DEACTIVATE_SELF',
+        'No puedes desactivar tu propia cuenta',
+      );
     }
 
     const updated = await this.usersRepository.setActiveStatus(
       targetUserId,
       isActive,
     );
-    if (!updated) throw new NotFoundException('Usuario no encontrado');
+    if (!updated)
+      throw httpError(
+        HttpStatus.NOT_FOUND,
+        'USERS_NOT_FOUND',
+        'Usuario no encontrado',
+      );
 
     await this.audit.log('ADMIN_SET_ACTIVE', {
       actorUserId: adminId,
@@ -89,11 +100,20 @@ export class UsersAdminService {
     role: string,
   ): Promise<ResponseUserDto> {
     if (adminId === targetUserId) {
-      throw new ForbiddenException('No puedes cambiar tu propio rol');
+      throw httpError(
+        HttpStatus.FORBIDDEN,
+        'USERS_CANNOT_CHANGE_SELF_ROLE',
+        'No puedes cambiar tu propio rol',
+      );
     }
 
     const updated = await this.usersRepository.setRole(targetUserId, role);
-    if (!updated) throw new NotFoundException('Usuario no encontrado');
+    if (!updated)
+      throw httpError(
+        HttpStatus.NOT_FOUND,
+        'USERS_NOT_FOUND',
+        'Usuario no encontrado',
+      );
 
     await this.audit.log('ADMIN_SET_ROLE', {
       actorUserId: adminId,

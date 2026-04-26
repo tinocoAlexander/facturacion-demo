@@ -1,4 +1,4 @@
-import { Module, ValidationPipe } from '@nestjs/common';
+import { BadRequestException, Module, ValidationPipe } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_FILTER, APP_GUARD, APP_PIPE } from '@nestjs/core';
@@ -14,6 +14,7 @@ import { AuditModule } from './audit/audit.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { createPinoHttpOptions } from './common/logging/pino-http.factory';
 import { MetricsModule } from './metrics/metrics.module';
+import type { ValidationError } from 'class-validator';
 
 @Module({
   imports: [
@@ -58,6 +59,21 @@ import { MetricsModule } from './metrics/metrics.module';
         forbidNonWhitelisted: true,
         transform: true, // convierte tipos automáticamente
         transformOptions: { enableImplicitConversion: true },
+        exceptionFactory: (errors: ValidationError[]) => {
+          const details = errors.map((e) => ({
+            field: e.property,
+            constraints: e.constraints ?? {},
+          }));
+
+          const payload = {
+            statusCode: 400,
+            message: 'Validation failed',
+            code: 'VALIDATION_ERROR',
+            details,
+          };
+
+          return new BadRequestException(payload);
+        },
       }),
     },
     // Rate limiting global para todos los endpoints

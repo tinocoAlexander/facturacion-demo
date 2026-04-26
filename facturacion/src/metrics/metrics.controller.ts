@@ -23,7 +23,7 @@ export class MetricsController {
     const nodeEnv = this.config.get<string>('NODE_ENV') ?? 'development';
     const isProduction = nodeEnv === 'production';
 
-    const enabledRaw = this.config.get('METRICS_ENABLED');
+    const enabledRaw: unknown = this.config.get('METRICS_ENABLED');
     const enabled =
       enabledRaw === true ||
       enabledRaw === 'true' ||

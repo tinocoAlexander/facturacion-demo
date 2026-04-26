@@ -38,6 +38,16 @@ import {
   SetRoleDto,
   UpdateProfileDto,
 } from './dtos';
+import type { Request as ExpressRequest } from 'express';
+
+type RequestWithUser = ExpressRequest & { user: { id: number } };
+
+function getUserAgent(req: ExpressRequest): string | undefined {
+  const raw = req.headers['user-agent'];
+  if (typeof raw === 'string') return raw;
+  if (Array.isArray(raw)) return raw[0];
+  return undefined;
+}
 
 @ApiTags('users')
 @ApiBearerAuth('bearer')
@@ -54,13 +64,13 @@ export class UsersController {
   @Post()
   @HttpCode(HttpStatus.CREATED)
   async create(
-    @Request() req: any,
+    @Request() req: RequestWithUser,
     @Body() createUserDto: CreateUserDto,
   ): Promise<ResponseUserDto> {
     return this.usersService.createUser(createUserDto, {
       actorUserId: req.user.id,
       ip: req.ip,
-      userAgent: req.headers?.['user-agent'],
+      userAgent: getUserAgent(req),
     });
   }
 
@@ -155,7 +165,7 @@ export class UsersController {
   @Roles('admin')
   @Patch(':id/active')
   setActive(
-    @Request() req: any,
+    @Request() req: RequestWithUser,
     @Param('id', ParseIntPipe) targetId: number,
     @Body() dto: SetActiveDto,
   ) {
@@ -175,7 +185,7 @@ export class UsersController {
   @Roles('admin')
   @Patch(':id/role')
   setRole(
-    @Request() req: any,
+    @Request() req: RequestWithUser,
     @Param('id', ParseIntPipe) targetId: number,
     @Body() dto: SetRoleDto,
   ) {

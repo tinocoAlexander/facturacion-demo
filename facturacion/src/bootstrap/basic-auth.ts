@@ -1,8 +1,9 @@
 import { timingSafeEqual } from 'crypto';
+import type { NextFunction, Request, Response } from 'express';
 
 export function createBasicAuthMiddleware(username: string, password: string) {
-  return (req: any, res: any, next: any) => {
-    const header = req.headers?.authorization as string | undefined;
+  return (req: Request, res: Response, next: NextFunction) => {
+    const header = req.headers.authorization;
     if (!header?.startsWith('Basic ')) {
       res.setHeader('WWW-Authenticate', 'Basic');
       return res.status(401).send('Unauthorized');

@@ -1,9 +1,4 @@
-import {
-  Injectable,
-  BadRequestException,
-  NotFoundException,
-  Logger,
-} from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { UsersRepository } from './users.repository';
 import {
@@ -16,6 +11,8 @@ import { User } from './users.types';
 import { UsersAdminService } from './services/users-admin.service';
 import { UsersSelfService } from './services/users-self.service';
 import { mapToResponseUserDto } from './users.mapper';
+import { httpError } from '../common/errors/http-error';
+import { HttpStatus } from '@nestjs/common';
 
 @Injectable()
 export class UsersService {
@@ -46,13 +43,21 @@ export class UsersService {
    */
   async getUserById(id: number): Promise<ResponseUserDto> {
     if (!Number.isInteger(id) || id <= 0) {
-      throw new BadRequestException('ID inválido');
+      throw httpError(
+        HttpStatus.BAD_REQUEST,
+        'USERS_INVALID_ID',
+        'ID inválido',
+      );
     }
 
     const user = await this.usersRepository.findById(id);
     if (!user) {
       this.logger.warn(`Usuario no encontrado: ${id}`);
-      throw new NotFoundException('Usuario no encontrado');
+      throw httpError(
+        HttpStatus.NOT_FOUND,
+        'USERS_NOT_FOUND',
+        'Usuario no encontrado',
+      );
     }
 
     return mapToResponseUserDto(user);
@@ -65,7 +70,11 @@ export class UsersService {
    */
   async getUserByEmail(email: string): Promise<User | null> {
     if (!email || !this.isValidEmail(email)) {
-      throw new BadRequestException('Email inválido');
+      throw httpError(
+        HttpStatus.BAD_REQUEST,
+        'USERS_EMAIL_INVALID',
+        'Email inválido',
+      );
     }
 
     return this.usersRepository.findByEmail(email);
@@ -78,7 +87,11 @@ export class UsersService {
    */
   async getActiveUserByEmail(email: string): Promise<User | null> {
     if (!email || !this.isValidEmail(email)) {
-      throw new BadRequestException('Email inválido');
+      throw httpError(
+        HttpStatus.BAD_REQUEST,
+        'USERS_EMAIL_INVALID',
+        'Email inválido',
+      );
     }
 
     return this.usersRepository.findActiveByEmail(email);
@@ -90,7 +103,11 @@ export class UsersService {
    */
   async updateLastLogin(id: number): Promise<void> {
     if (!Number.isInteger(id) || id <= 0) {
-      throw new BadRequestException('ID inválido');
+      throw httpError(
+        HttpStatus.BAD_REQUEST,
+        'USERS_INVALID_ID',
+        'ID inválido',
+      );
     }
 
     try {
@@ -167,7 +184,7 @@ export class UsersService {
   async validatePassword(password: string, hash: string): Promise<boolean> {
     try {
       return await bcrypt.compare(password, hash);
-    } catch (error) {
+    } catch {
       this.logger.error('Error validando contraseña');
       return false;
     }

@@ -8,7 +8,7 @@ export type AuditContext = {
   targetUserId?: number | null;
   ip?: string;
   userAgent?: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 };
 
 export type AuditLogRecord = {
@@ -18,8 +18,19 @@ export type AuditLogRecord = {
   targetUserId: number | null;
   ip: string | null;
   userAgent: string | null;
-  metadata: Record<string, any> | null;
+  metadata: Record<string, unknown> | null;
   createdAt: string;
+};
+
+type AuditLogRow = {
+  id: number;
+  actor_user_id: number | null;
+  action: string;
+  target_user_id: number | null;
+  ip: string | null;
+  user_agent: string | null;
+  metadata: Record<string, unknown> | null;
+  created_at: Date | string;
 };
 
 @Injectable()
@@ -62,9 +73,9 @@ export class AuditService {
     const offset = (safePage - 1) * safeLimit;
 
     const where: string[] = [];
-    const values: any[] = [];
+    const values: unknown[] = [];
 
-    const push = (clause: string, value: any) => {
+    const push = (clause: string, value: unknown) => {
       values.push(value);
       where.push(clause.replace('?', `$${values.length}`));
     };
@@ -86,7 +97,7 @@ export class AuditService {
 
     const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
 
-    const countRes = await this.pool.query(
+    const countRes = await this.pool.query<{ total: number }>(
       `SELECT COUNT(*)::int AS total FROM audit_logs ${whereSql}`,
       values,
     );
@@ -96,7 +107,7 @@ export class AuditService {
     const limitIdx = values.length + 1;
     const offsetIdx = values.length + 2;
 
-    const rowsRes = await this.pool.query(
+    const rowsRes = await this.pool.query<AuditLogRow>(
       `
         SELECT id, actor_user_id, action, target_user_id, ip, user_agent, metadata, created_at
         FROM audit_logs
@@ -107,7 +118,7 @@ export class AuditService {
       listValues,
     );
 
-    const data: AuditLogRecord[] = (rowsRes.rows ?? []).map((r: any) => ({
+    const data: AuditLogRecord[] = (rowsRes.rows ?? []).map((r) => ({
       id: r.id,
       actorUserId: r.actor_user_id ?? null,
       action: r.action,

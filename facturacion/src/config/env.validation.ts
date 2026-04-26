@@ -24,6 +24,9 @@ export const envValidationSchema = Joi.object({
   DB_POOL_IDLE_TIMEOUT_MS: Joi.number().integer().min(1000).default(30000),
   DB_POOL_CONNECTION_TIMEOUT_MS: Joi.number().integer().min(1000).default(2000),
 
+  // DB query timeouts
+  DB_STATEMENT_TIMEOUT_MS: Joi.number().integer().min(1000).default(15000),
+
   // JWT
   JWT_SECRET: Joi.string().required(),
   JWT_EXPIRES_IN: Joi.string().default('15m'),
@@ -53,8 +56,21 @@ export const envValidationSchema = Joi.object({
   // Proxy
   TRUST_PROXY: Joi.boolean().default(false),
 
+  // HTTP server timeouts (ms)
+  SERVER_REQUEST_TIMEOUT_MS: Joi.number().integer().min(1000).default(30000),
+  SERVER_HEADERS_TIMEOUT_MS: Joi.number().integer().min(1000).default(35000),
+  SERVER_KEEP_ALIVE_TIMEOUT_MS: Joi.number().integer().min(1000).default(5000),
+
   // Redis
   REDIS_URL: Joi.string(),
+
+  // Migrations
+  // - En dev/test: corre por defecto
+  // - En prod: solo si MIGRATIONS_AUTO_RUN=true
+  MIGRATIONS_AUTO_RUN: Joi.boolean(),
+
+  // Audit retention (days). Si se setea, se purgan logs más antiguos en el arranque.
+  AUDIT_RETENTION_DAYS: Joi.number().integer().min(1).max(3650),
 
   // Swagger
   // - En dev se habilita por defecto (ver main.ts)

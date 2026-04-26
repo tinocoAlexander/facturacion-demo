@@ -1,16 +1,29 @@
 import { ConfigService } from '@nestjs/config';
 import { randomUUID } from 'crypto';
+import type { Request, Response } from 'express';
+
+type RequestWithUser = Request & {
+  id?: string;
+  user?: { id?: number; role?: string };
+};
 
 export function createPinoHttpOptions(config: ConfigService) {
   const nodeEnv = config.get<string>('NODE_ENV') ?? 'development';
   const isProd = nodeEnv === 'production';
   const level = (config.get<string>('LOG_LEVEL') ??
-    (isProd ? 'info' : 'debug')) as any;
+    (isProd ? 'info' : 'debug')) as
+    | 'fatal'
+    | 'error'
+    | 'warn'
+    | 'info'
+    | 'debug'
+    | 'trace'
+    | 'silent';
 
   return {
     level,
-    genReqId: (req: any, res: any) => {
-      const incoming = req.headers?.['x-request-id'];
+    genReqId: (req: RequestWithUser, res: Response) => {
+      const incoming = req.headers['x-request-id'];
       if (typeof incoming === 'string' && incoming.trim().length > 0) {
         res.setHeader('x-request-id', incoming);
         return incoming;
@@ -23,7 +36,7 @@ export function createPinoHttpOptions(config: ConfigService) {
       res.setHeader('x-request-id', id);
       return id;
     },
-    customProps: (req: any) => ({
+    customProps: (req: RequestWithUser) => ({
       requestId: req.id,
       userId: req.user?.id,
       userRole: req.user?.role,
@@ -37,7 +50,7 @@ export function createPinoHttpOptions(config: ConfigService) {
       remove: true,
     },
     autoLogging: {
-      ignore: (req: any) => req.url?.startsWith('/api/v1/health'),
+      ignore: (req: Request) => req.url?.startsWith('/api/v1/health'),
     },
     transport: !isProd
       ? {

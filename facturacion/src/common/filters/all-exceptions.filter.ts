@@ -7,6 +7,13 @@ import {
 } from '@nestjs/common';
 import { HttpAdapterHost } from '@nestjs/core';
 import { PinoLogger } from 'nestjs-pino';
+import type { Request } from 'express';
+import { defaultErrorCodeForStatus } from '../errors/status-codes';
+
+type RequestWithUser = Request & {
+  id?: string;
+  user?: { id?: number; role?: string };
+};
 
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
@@ -20,9 +27,9 @@ export class AllExceptionsFilter implements ExceptionFilter {
   catch(exception: unknown, host: ArgumentsHost) {
     const { httpAdapter } = this.httpAdapterHost;
     const ctx = host.switchToHttp();
-    const request = ctx.getRequest<any>();
-    const requestId = request?.id;
-    const userId = request?.user?.id;
+    const request = ctx.getRequest<RequestWithUser>();
+    const requestId = request.id;
+    const userId = request.user?.id;
 
     const timestamp = new Date().toISOString();
 
@@ -30,10 +37,19 @@ export class AllExceptionsFilter implements ExceptionFilter {
       const statusCode = exception.getStatus();
       const response = exception.getResponse();
 
-      const payload =
+      const basePayload: Record<string, unknown> =
         typeof response === 'string'
           ? { statusCode, message: response }
-          : (response as Record<string, any>);
+          : (response as Record<string, unknown>);
+
+      const payload = {
+        statusCode,
+        code:
+          typeof basePayload.code === 'string'
+            ? basePayload.code
+            : defaultErrorCodeForStatus(statusCode),
+        ...basePayload,
+      };
 
       httpAdapter.reply(
         ctx.getResponse(),
@@ -51,7 +67,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const statusCode = HttpStatus.INTERNAL_SERVER_ERROR;
     const message = 'Internal server error';
 
-    const err = exception as any;
+    const err = exception;
     this.logger.error(
       {
         err,
