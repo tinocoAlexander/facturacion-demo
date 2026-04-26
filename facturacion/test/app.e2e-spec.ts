@@ -27,6 +27,9 @@ describe('API (e2e)', () => {
       process.env.LOGIN_ATTEMPT_WINDOW_MS || '60000';
     process.env.LOGIN_ATTEMPT_BLOCK_MS =
       process.env.LOGIN_ATTEMPT_BLOCK_MS || '60000';
+    process.env.CSD_ENCRYPTION_KEY =
+      process.env.CSD_ENCRYPTION_KEY ||
+      'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855';
   });
 
   beforeAll(async () => {
