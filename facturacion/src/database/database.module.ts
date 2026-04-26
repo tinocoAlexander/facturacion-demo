@@ -25,11 +25,11 @@ import { DatabaseShutdown } from './database.shutdown';
           connectionTimeoutMillis:
             configService.get<number>('DB_POOL_CONNECTION_TIMEOUT_MS') ?? 2000,
         });
-        
+
         pool.on('error', (err) => {
           console.error('Pool error:', err.message);
         });
-        
+
         return pool;
       },
     },

@@ -1,4 +1,8 @@
-import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+} from '@nestjs/common';
 import { Pool } from 'pg';
 import { InjectPool } from '../database/database.constants';
 import { USER_QUERIES } from '../database/queries/users.queries';
@@ -12,10 +16,9 @@ export class UsersRepository {
 
   async findByEmail(email: string): Promise<User | null> {
     try {
-      const { rows } = await this.pool.query<User>(
-        USER_QUERIES.FIND_BY_EMAIL,
-        [email],
-      );
+      const { rows } = await this.pool.query<User>(USER_QUERIES.FIND_BY_EMAIL, [
+        email,
+      ]);
       return rows[0] ?? null;
     } catch (err) {
       this.logger.error('findByEmail failed', (err as Error).message);
@@ -76,7 +79,10 @@ export class UsersRepository {
     await this.pool.query(USER_QUERIES.UPDATE_LAST_LOGIN, [id]);
   }
 
-  async updateProfile(id: number, fullName: string): Promise<PublicUser | null> {
+  async updateProfile(
+    id: number,
+    fullName: string,
+  ): Promise<PublicUser | null> {
     try {
       const { rows } = await this.pool.query<PublicUser>(
         USER_QUERIES.UPDATE_PROFILE,
@@ -91,10 +97,10 @@ export class UsersRepository {
 
   async changePassword(id: number, newPasswordHash: string): Promise<boolean> {
     try {
-      const { rows } = await this.pool.query(
-        USER_QUERIES.CHANGE_PASSWORD,
-        [newPasswordHash, id],
-      );
+      const { rows } = await this.pool.query(USER_QUERIES.CHANGE_PASSWORD, [
+        newPasswordHash,
+        id,
+      ]);
       return rows.length > 0;
     } catch (err) {
       this.logger.error('changePassword failed', (err as Error).message);
@@ -102,7 +108,10 @@ export class UsersRepository {
     }
   }
 
-  async setActiveStatus(id: number, isActive: boolean): Promise<PublicUser | null> {
+  async setActiveStatus(
+    id: number,
+    isActive: boolean,
+  ): Promise<PublicUser | null> {
     try {
       const { rows } = await this.pool.query<PublicUser>(
         USER_QUERIES.SET_ACTIVE_STATUS,

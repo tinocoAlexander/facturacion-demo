@@ -1,5 +1,7 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import Redis from 'ioredis';
+import { OnApplicationShutdown } from '@nestjs/common';
 
 type AttemptRecord = {
   count: number;
@@ -8,13 +10,45 @@ type AttemptRecord = {
 };
 
 @Injectable()
-export class LoginAttemptsService {
+export class LoginAttemptsService implements OnApplicationShutdown {
   private readonly byEmail = new Map<string, AttemptRecord>();
   private readonly byIp = new Map<string, AttemptRecord>();
 
-  constructor(private readonly config: ConfigService) {}
+  private readonly redis?: Redis;
 
-  assertNotBlocked(email: string, ip?: string) {
+  constructor(private readonly config: ConfigService) {
+    const url = this.config.get<string>('REDIS_URL');
+    if (url) {
+      this.redis = new Redis(url, { maxRetriesPerRequest: 2 });
+    }
+  }
+
+  async onApplicationShutdown() {
+    if (this.redis) {
+      await this.redis.quit();
+    }
+  }
+
+  async assertNotBlocked(email: string, ip?: string) {
+    if (this.redis) {
+      const emailKey = this.normalizeEmail(email);
+
+      const blockKeys = [this.blockKey('email', emailKey)];
+      if (ip) blockKeys.push(this.blockKey('ip', ip));
+
+      const values = await this.redis.mget(blockKeys);
+      if (values.some((v) => v !== null)) {
+        throw new HttpException(
+          {
+            message: 'Demasiados intentos. Intenta más tarde.',
+            code: 'AUTH_TOO_MANY_ATTEMPTS',
+          },
+          HttpStatus.TOO_MANY_REQUESTS,
+        );
+      }
+      return;
+    }
+
     const now = Date.now();
 
     const emailKey = this.normalizeEmail(email);
@@ -37,22 +71,55 @@ export class LoginAttemptsService {
     }
   }
 
-  registerFailure(email: string, ip?: string) {
+  async registerFailure(email: string, ip?: string) {
+    if (this.redis) {
+      const emailKey = this.normalizeEmail(email);
+      await this.bumpRedis('email', emailKey, this.maxAttemptsEmail);
+      if (ip) await this.bumpRedis('ip', ip, this.maxAttemptsIp);
+      return;
+    }
+
     const now = Date.now();
     const windowMs = this.windowMs;
     const blockMs = this.blockMs;
 
     const emailKey = this.normalizeEmail(email);
-    this.byEmail.set(emailKey, this.bump(this.byEmail.get(emailKey), now, windowMs, blockMs, this.maxAttemptsEmail));
+    this.byEmail.set(
+      emailKey,
+      this.bump(
+        this.byEmail.get(emailKey),
+        now,
+        windowMs,
+        blockMs,
+        this.maxAttemptsEmail,
+      ),
+    );
 
     if (ip) {
-      this.byIp.set(ip, this.bump(this.byIp.get(ip), now, windowMs, blockMs, this.maxAttemptsIp));
+      this.byIp.set(
+        ip,
+        this.bump(
+          this.byIp.get(ip),
+          now,
+          windowMs,
+          blockMs,
+          this.maxAttemptsIp,
+        ),
+      );
     }
 
     this.cleanup();
   }
 
-  registerSuccess(email: string, ip?: string) {
+  async registerSuccess(email: string, ip?: string) {
+    if (this.redis) {
+      const emailKey = this.normalizeEmail(email);
+      const keys = [this.attemptsKey('email', emailKey)];
+      if (ip) keys.push(this.attemptsKey('ip', ip));
+      await this.redis.del(keys);
+      return;
+    }
+
     const emailKey = this.normalizeEmail(email);
     this.byEmail.delete(emailKey);
 
@@ -117,5 +184,47 @@ export class LoginAttemptsService {
 
   private get maxAttemptsIp(): number {
     return this.config.get<number>('LOGIN_MAX_ATTEMPTS_IP') ?? 30;
+  }
+
+  private attemptsKey(type: 'email' | 'ip', id: string): string {
+    return `login:attempts:${type}:${id}`;
+  }
+
+  private blockKey(type: 'email' | 'ip', id: string): string {
+    return `login:block:${type}:${id}`;
+  }
+
+  private async bumpRedis(
+    type: 'email' | 'ip',
+    id: string,
+    maxAttempts: number,
+  ) {
+    if (!this.redis) return;
+
+    const blockKey = this.blockKey(type, id);
+    const attemptsKey = this.attemptsKey(type, id);
+
+    const blocked = await this.redis.exists(blockKey);
+    if (blocked) return;
+
+    const multi = this.redis.multi();
+    multi.incr(attemptsKey);
+    multi.pttl(attemptsKey);
+
+    const execRes = await multi.exec();
+    const count = Number(execRes?.[0]?.[1] ?? 0);
+    const ttl = Number(execRes?.[1]?.[1] ?? -1);
+
+    if (ttl === -1) {
+      await this.redis.pexpire(attemptsKey, this.windowMs);
+    }
+
+    if (count >= maxAttempts) {
+      await this.redis
+        .multi()
+        .set(blockKey, '1', 'PX', this.blockMs)
+        .del(attemptsKey)
+        .exec();
+    }
   }
 }

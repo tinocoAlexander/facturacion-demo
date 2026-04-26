@@ -50,13 +50,15 @@ export class MigrationRunner implements OnApplicationBootstrap {
         );
 
         await client.query(sql);
-        await client.query('INSERT INTO _migrations (name) VALUES ($1)', [file]);
+        await client.query('INSERT INTO _migrations (name) VALUES ($1)', [
+          file,
+        ]);
 
         this.logger.log(`Done: ${file}`);
       }
     } catch (error) {
       this.logger.error('Migration failed', (error as Error).message);
-      throw error;  
+      throw error;
     } finally {
       client.release();
     }

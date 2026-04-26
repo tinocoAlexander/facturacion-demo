@@ -7,6 +7,11 @@ export const envValidationSchema = Joi.object({
     .default('development'),
   PORT: Joi.number().default(3000),
 
+  // Logging
+  LOG_LEVEL: Joi.string()
+    .valid('fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent')
+    .default('info'),
+
   // Database
   DB_HOST: Joi.string().default('localhost'),
   DB_PORT: Joi.number().default(5432),
@@ -23,6 +28,9 @@ export const envValidationSchema = Joi.object({
   JWT_SECRET: Joi.string().required(),
   JWT_EXPIRES_IN: Joi.string().default('15m'),
 
+  // Refresh tokens
+  REFRESH_TOKEN_TTL_DAYS: Joi.number().integer().min(1).max(365).default(7),
+
   // Throttler
   THROTTLE_TTL: Joi.number().default(60000),
   THROTTLE_LIMIT: Joi.number().default(60),
@@ -30,16 +38,35 @@ export const envValidationSchema = Joi.object({
   // Anti brute-force login
   LOGIN_MAX_ATTEMPTS_EMAIL: Joi.number().integer().min(1).max(50).default(10),
   LOGIN_MAX_ATTEMPTS_IP: Joi.number().integer().min(1).max(200).default(30),
-  LOGIN_ATTEMPT_WINDOW_MS: Joi.number().integer().min(10_000).default(10 * 60_000),
-  LOGIN_ATTEMPT_BLOCK_MS: Joi.number().integer().min(10_000).default(15 * 60_000),
+  LOGIN_ATTEMPT_WINDOW_MS: Joi.number()
+    .integer()
+    .min(10_000)
+    .default(10 * 60_000),
+  LOGIN_ATTEMPT_BLOCK_MS: Joi.number()
+    .integer()
+    .min(10_000)
+    .default(15 * 60_000),
 
   // CORS
   CORS_ORIGIN: Joi.string(),
 
+  // Proxy
+  TRUST_PROXY: Joi.boolean().default(false),
+
+  // Redis
+  REDIS_URL: Joi.string(),
+
   // Swagger
   // - En dev se habilita por defecto (ver main.ts)
   // - En production solo se habilita si SWAGGER_ENABLED=true
-  SWAGGER_ENABLED: Joi.boolean().default(false),
+  SWAGGER_ENABLED: Joi.boolean(),
   SWAGGER_BASIC_USER: Joi.string(),
   SWAGGER_BASIC_PASSWORD: Joi.string(),
+
+  // Metrics (Prometheus)
+  // - En dev se habilita por defecto (ver main.ts)
+  // - En production solo se habilita si METRICS_ENABLED=true
+  METRICS_ENABLED: Joi.boolean(),
+  METRICS_BASIC_USER: Joi.string(),
+  METRICS_BASIC_PASSWORD: Joi.string(),
 });

@@ -44,6 +44,45 @@ $ npm run start:dev
 $ npm run start:prod
 ```
 
+## Swagger (OpenAPI)
+
+- URL (con prefijo global): `http://localhost:3000/api/v1/docs`
+- En `development`: habilitado por defecto.
+- En `production`: se habilita solo si `SWAGGER_ENABLED=true`.
+
+Variables de entorno:
+
+- `SWAGGER_ENABLED` (`true`/`false`)
+- `SWAGGER_BASIC_USER` (requerido en prod si se habilita)
+- `SWAGGER_BASIC_PASSWORD` (requerido en prod si se habilita)
+
+## Metrics (Prometheus)
+
+- URL (sin prefijo global): `http://localhost:3000/metrics`
+- En `development`: habilitado por defecto.
+- En `production`: se habilita solo si `METRICS_ENABLED=true`.
+- En `production`: si está habilitado, exige BasicAuth (configurado en `main.ts`). Si faltan credenciales, el endpoint queda apagado (fail-closed).
+
+Variables de entorno:
+
+- `METRICS_ENABLED` (`true`/`false`)
+- `METRICS_BASIC_USER` (requerido en prod si se habilita)
+- `METRICS_BASIC_PASSWORD` (requerido en prod si se habilita)
+
+Ejemplo de scrape (Prometheus):
+
+```yaml
+scrape_configs:
+  - job_name: 'facturacion'
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['localhost:3000']
+    # En production
+    basic_auth:
+      username: your_user
+      password: your_password
+```
+
 ## Run tests
 
 ```bash

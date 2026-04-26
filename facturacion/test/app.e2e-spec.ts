@@ -2,21 +2,31 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { App } from 'supertest/types';
+import type { Pool } from 'pg';
 import { AppModule } from './../src/app.module';
+import { DATABASE_POOL } from './../src/database/database.constants';
 
 describe('API (e2e)', () => {
   let app: INestApplication<App>;
+  let pool: Pool;
 
   const api = (path: string) => `/api/v1${path}`;
-  const randomEmail = () => `user_${Date.now()}_${Math.floor(Math.random() * 10000)}@example.com`;
+  const randomEmail = () =>
+    `user_${Date.now()}_${Math.floor(Math.random() * 10000)}@example.com`;
+  const randomIp = () =>
+    `10.${Math.floor(Math.random() * 200) + 1}.${Math.floor(Math.random() * 200) + 1}.${Math.floor(Math.random() * 200) + 1}`;
 
   beforeAll(() => {
     // Ajustes para que el e2e sea determinista
     process.env.NODE_ENV = process.env.NODE_ENV || 'test';
-    process.env.LOGIN_MAX_ATTEMPTS_EMAIL = process.env.LOGIN_MAX_ATTEMPTS_EMAIL || '5';
-    process.env.LOGIN_MAX_ATTEMPTS_IP = process.env.LOGIN_MAX_ATTEMPTS_IP || '10';
-    process.env.LOGIN_ATTEMPT_WINDOW_MS = process.env.LOGIN_ATTEMPT_WINDOW_MS || '60000';
-    process.env.LOGIN_ATTEMPT_BLOCK_MS = process.env.LOGIN_ATTEMPT_BLOCK_MS || '60000';
+    process.env.LOGIN_MAX_ATTEMPTS_EMAIL =
+      process.env.LOGIN_MAX_ATTEMPTS_EMAIL || '5';
+    process.env.LOGIN_MAX_ATTEMPTS_IP =
+      process.env.LOGIN_MAX_ATTEMPTS_IP || '10';
+    process.env.LOGIN_ATTEMPT_WINDOW_MS =
+      process.env.LOGIN_ATTEMPT_WINDOW_MS || '60000';
+    process.env.LOGIN_ATTEMPT_BLOCK_MS =
+      process.env.LOGIN_ATTEMPT_BLOCK_MS || '60000';
   });
 
   beforeAll(async () => {
@@ -27,7 +37,11 @@ describe('API (e2e)', () => {
     app = moduleFixture.createNestApplication();
     // En tests no corre main.ts, así que replicamos el prefijo global
     app.setGlobalPrefix('api/v1');
+    // Determinismo para throttling por IP
+    (app as any).set('trust proxy', 1);
     await app.init();
+
+    pool = app.get<Pool>(DATABASE_POOL);
   });
 
   it('GET /health (should be ok)', async () => {
@@ -57,6 +71,7 @@ describe('API (e2e)', () => {
       .send({ email, password })
       .expect(200);
     expect(loginRes.body).toHaveProperty('accessToken');
+    expect(loginRes.body).toHaveProperty('refreshToken');
     const token = loginRes.body.accessToken as string;
 
     // me
@@ -87,6 +102,145 @@ describe('API (e2e)', () => {
       .send({ email, password: newPassword })
       .expect(200);
     expect(loginRes2.body).toHaveProperty('accessToken');
+    expect(loginRes2.body).toHaveProperty('refreshToken');
+  });
+
+  it('login -> refresh rotates token -> old refresh invalid -> logout revokes', async () => {
+    const email = randomEmail();
+    const password = 'MyStrongP4ssword';
+
+    await request(app.getHttpServer())
+      .post(api('/auth/register'))
+      .send({ email, password, fullName: 'Refresh User' })
+      .expect(201);
+
+    const loginRes = await request(app.getHttpServer())
+      .post(api('/auth/login'))
+      .send({ email, password })
+      .expect(200);
+
+    const refreshToken1 = loginRes.body.refreshToken as string;
+    expect(typeof refreshToken1).toBe('string');
+
+    const refreshRes = await request(app.getHttpServer())
+      .post(api('/auth/refresh'))
+      .send({ refreshToken: refreshToken1 })
+      .expect(200);
+
+    const refreshToken2 = refreshRes.body.refreshToken as string;
+    expect(refreshRes.body).toHaveProperty('accessToken');
+    expect(typeof refreshToken2).toBe('string');
+    expect(refreshToken2).not.toBe(refreshToken1);
+
+    // old token should be invalid after rotation
+    await request(app.getHttpServer())
+      .post(api('/auth/refresh'))
+      .send({ refreshToken: refreshToken1 })
+      .expect(401);
+
+    // logout revokes current refresh
+    await request(app.getHttpServer())
+      .post(api('/auth/logout'))
+      .send({ refreshToken: refreshToken2 })
+      .expect(200);
+
+    await request(app.getHttpServer())
+      .post(api('/auth/refresh'))
+      .send({ refreshToken: refreshToken2 })
+      .expect(401);
+  });
+
+  it('admin RBAC: non-admin forbidden, admin can list/create users', async () => {
+    // Non-admin user
+    const email = randomEmail();
+    const password = 'MyStrongP4ssword';
+    await request(app.getHttpServer())
+      .post(api('/auth/register'))
+      .send({ email, password, fullName: 'Normal User' })
+      .expect(201);
+    const loginRes = await request(app.getHttpServer())
+      .post(api('/auth/login'))
+      .send({ email, password })
+      .expect(200);
+    const userToken = loginRes.body.accessToken as string;
+
+    await request(app.getHttpServer())
+      .get(api('/users'))
+      .set('Authorization', `Bearer ${userToken}`)
+      .expect(403);
+
+    await request(app.getHttpServer())
+      .get(api('/audit/logs'))
+      .set('Authorization', `Bearer ${userToken}`)
+      .expect(403);
+
+    // Admin user (promoted directly in DB)
+    const adminEmail = randomEmail();
+    await request(app.getHttpServer())
+      .post(api('/auth/register'))
+      .send({ email: adminEmail, password, fullName: 'Admin User' })
+      .expect(201);
+
+    await pool.query(`UPDATE users SET role = 'admin' WHERE email = $1`, [
+      adminEmail,
+    ]);
+
+    const adminLoginRes = await request(app.getHttpServer())
+      .post(api('/auth/login'))
+      .send({ email: adminEmail, password })
+      .expect(200);
+    const adminToken = adminLoginRes.body.accessToken as string;
+
+    const listRes = await request(app.getHttpServer())
+      .get(api('/users?page=1&limit=10'))
+      .set('Authorization', `Bearer ${adminToken}`)
+      .expect(200);
+    expect(listRes.body).toHaveProperty('data');
+
+    const auditRes = await request(app.getHttpServer())
+      .get(api('/audit/logs?page=1&limit=10'))
+      .set('Authorization', `Bearer ${adminToken}`)
+      .expect(200);
+    expect(Array.isArray(auditRes.body.data)).toBe(true);
+    expect(auditRes.body).toHaveProperty('meta');
+
+    const newEmail = randomEmail();
+    const createRes = await request(app.getHttpServer())
+      .post(api('/users'))
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        email: newEmail,
+        password: 'AnotherP4ssword1',
+        fullName: 'Created By Admin',
+      })
+      .expect(201);
+    expect(createRes.body.email).toBe(newEmail);
+  });
+
+  it('throttling: /auth/register returns 429 after limit', async () => {
+    const ip = randomIp();
+
+    for (let i = 0; i < 5; i++) {
+      await request(app.getHttpServer())
+        .post(api('/auth/register'))
+        .set('X-Forwarded-For', ip)
+        .send({
+          email: randomEmail(),
+          password: 'MyStrongP4ssword',
+          fullName: 'Throttle User',
+        })
+        .expect(201);
+    }
+
+    await request(app.getHttpServer())
+      .post(api('/auth/register'))
+      .set('X-Forwarded-For', ip)
+      .send({
+        email: randomEmail(),
+        password: 'MyStrongP4ssword',
+        fullName: 'Throttle User 6',
+      })
+      .expect(429);
   });
 
   afterAll(async () => {

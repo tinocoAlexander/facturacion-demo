@@ -1,14 +1,19 @@
 import { Module, ValidationPipe } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
-import { APP_GUARD, APP_PIPE } from '@nestjs/core';
+import { APP_FILTER, APP_GUARD, APP_PIPE } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
 import * as path from 'path';
+import { LoggerModule } from 'nestjs-pino';
 import { HealthModule } from './health/health.module';
 import { DatabaseModule } from './database/database.module';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { envValidationSchema } from './config/env.validation';
+import { AuditModule } from './audit/audit.module';
+import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
+import { createPinoHttpOptions } from './common/logging/pino-http.factory';
+import { MetricsModule } from './metrics/metrics.module';
 
 @Module({
   imports: [
@@ -17,6 +22,16 @@ import { envValidationSchema } from './config/env.validation';
       isGlobal: true,
       validationSchema: envValidationSchema,
       // Si alguna variable de .env falta o es inválida, la app no arranca
+    }),
+    LoggerModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => {
+        return {
+          pinoHttp: {
+            ...createPinoHttpOptions(config),
+          },
+        };
+      },
     }),
     ThrottlerModule.forRootAsync({
       inject: [ConfigService],
@@ -29,6 +44,8 @@ import { envValidationSchema } from './config/env.validation';
     }),
     HealthModule,
     DatabaseModule,
+    AuditModule,
+    MetricsModule,
     AuthModule,
     UsersModule,
   ],
@@ -47,6 +64,10 @@ import { envValidationSchema } from './config/env.validation';
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard,
+    },
+    {
+      provide: APP_FILTER,
+      useClass: AllExceptionsFilter,
     },
   ],
 })

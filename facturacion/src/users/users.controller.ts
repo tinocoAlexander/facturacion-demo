@@ -27,6 +27,8 @@ import {
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt.guard';
 import { Roles, RolesGuard } from '../auth/guards/roles.guard';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import type { CurrentUserPayload } from '../auth/decorators/current-user.decorator';
 import { UsersService } from './users.service';
 import {
   ChangePasswordDto,
@@ -51,8 +53,15 @@ export class UsersController {
   @Roles('admin')
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  async create(@Body() createUserDto: CreateUserDto): Promise<ResponseUserDto> {
-    return this.usersService.createUser(createUserDto);
+  async create(
+    @Request() req: any,
+    @Body() createUserDto: CreateUserDto,
+  ): Promise<ResponseUserDto> {
+    return this.usersService.createUser(createUserDto, {
+      actorUserId: req.user.id,
+      ip: req.ip,
+      userAgent: req.headers?.['user-agent'],
+    });
   }
 
   @ApiOperation({ summary: 'Obtener usuario por ID (admin)' })
@@ -74,7 +83,10 @@ export class UsersController {
     schema: {
       type: 'object',
       properties: {
-        data: { type: 'array', items: { $ref: '#/components/schemas/ResponseUserDto' } },
+        data: {
+          type: 'array',
+          items: { $ref: '#/components/schemas/ResponseUserDto' },
+        },
         meta: {
           type: 'object',
           properties: {
@@ -105,22 +117,33 @@ export class UsersController {
   @ApiUnauthorizedResponse({ description: 'JWT inválido o ausente' })
   @ApiBody({ type: UpdateProfileDto })
   @Patch('me/profile')
-  updateProfile(@Request() req: any, @Body() dto: UpdateProfileDto) {
-    return this.usersService.updateProfile(req.user.id, dto);
+  updateProfile(
+    @CurrentUser() user: CurrentUserPayload,
+    @Body() dto: UpdateProfileDto,
+  ) {
+    return this.usersService.updateProfile(user.id, dto);
   }
 
   @ApiOperation({ summary: 'Cambiar mi contraseña' })
   @ApiOkResponse({
     schema: {
       type: 'object',
-      properties: { message: { type: 'string', example: 'Contraseña actualizada correctamente' } },
+      properties: {
+        message: {
+          type: 'string',
+          example: 'Contraseña actualizada correctamente',
+        },
+      },
     },
   })
   @ApiUnauthorizedResponse({ description: 'JWT inválido o ausente' })
   @ApiBody({ type: ChangePasswordDto })
   @Patch('me/password')
-  changePassword(@Request() req: any, @Body() dto: ChangePasswordDto) {
-    return this.usersService.changePassword(req.user.id, dto);
+  changePassword(
+    @CurrentUser() user: CurrentUserPayload,
+    @Body() dto: ChangePasswordDto,
+  ) {
+    return this.usersService.changePassword(user.id, dto);
   }
 
   @ApiOperation({ summary: 'Activar o desactivar usuario (admin)' })
@@ -136,7 +159,11 @@ export class UsersController {
     @Param('id', ParseIntPipe) targetId: number,
     @Body() dto: SetActiveDto,
   ) {
-    return this.usersService.setActiveStatus(req.user.id, targetId, dto.isActive);
+    return this.usersService.setActiveStatus(
+      req.user.id,
+      targetId,
+      dto.isActive,
+    );
   }
 
   @ApiOperation({ summary: 'Cambiar rol de usuario (admin)' })

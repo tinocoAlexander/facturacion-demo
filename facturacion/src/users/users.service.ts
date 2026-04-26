@@ -2,54 +2,41 @@ import {
   Injectable,
   BadRequestException,
   NotFoundException,
-  ConflictException,
-  ForbiddenException,
-  UnauthorizedException,
   Logger,
 } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { UsersRepository } from './users.repository';
-import { ChangePasswordDto, CreateUserDto, ResponseUserDto, UpdateProfileDto } from './dtos';
-import { User, PublicUser } from './users.types';
+import {
+  ChangePasswordDto,
+  CreateUserDto,
+  ResponseUserDto,
+  UpdateProfileDto,
+} from './dtos';
+import { User } from './users.types';
+import { UsersAdminService } from './services/users-admin.service';
+import { UsersSelfService } from './services/users-self.service';
+import { mapToResponseUserDto } from './users.mapper';
 
 @Injectable()
 export class UsersService {
   private readonly logger = new Logger(UsersService.name);
-  private readonly BCRYPT_ROUNDS = 12;
 
-  constructor(private readonly usersRepository: UsersRepository) {}
+  constructor(
+    private readonly usersRepository: UsersRepository,
+    private readonly usersAdmin: UsersAdminService,
+    private readonly usersSelf: UsersSelfService,
+  ) {}
 
   /**
    * Crear nuevo usuario con hash de contraseña
    * @param createUserDto - Datos para crear el usuario
    * @returns Usuario creado sin información sensible
    */
-  async createUser(createUserDto: CreateUserDto): Promise<ResponseUserDto> {
-    const { email, password, fullName } = createUserDto;
-
-    // Validar que el email no exista
-    const userExists = await this.usersRepository.emailExists(email);
-    if (userExists) {
-      this.logger.warn(`Intento de crear usuario con email existente: ${email}`);
-      throw new ConflictException('El email ya está registrado');
-    }
-
-    try {
-      // Hash de la contraseña
-      const passwordHash = await bcrypt.hash(password, this.BCRYPT_ROUNDS);
-
-      // Crear usuario en BD
-      const user = await this.usersRepository.create(
-        email,
-        passwordHash,
-        fullName,
-      );
-
-      return this.mapToResponseDto(user);
-    } catch (error) {
-      this.logger.error(`Error al crear usuario: ${(error as Error).message}`);
-      throw new BadRequestException('Error al crear el usuario');
-    }
+  async createUser(
+    createUserDto: CreateUserDto,
+    ctx?: { actorUserId?: number; ip?: string; userAgent?: string },
+  ): Promise<ResponseUserDto> {
+    return this.usersAdmin.createUser(createUserDto, ctx);
   }
 
   /**
@@ -68,7 +55,7 @@ export class UsersService {
       throw new NotFoundException('Usuario no encontrado');
     }
 
-    return this.mapToResponseDto(user);
+    return mapToResponseUserDto(user);
   }
 
   /**
@@ -109,7 +96,9 @@ export class UsersService {
     try {
       await this.usersRepository.updateLastLogin(id);
     } catch (error) {
-      this.logger.error(`Error al actualizar último login: ${(error as Error).message}`);
+      this.logger.error(
+        `Error al actualizar último login: ${(error as Error).message}`,
+      );
       // No lanzar error, solo loguear
     }
   }
@@ -117,43 +106,21 @@ export class UsersService {
   /**
    * Cualquier usuario: actualizar su propio perfil
    */
-  async updateProfile(userId: number, dto: UpdateProfileDto): Promise<ResponseUserDto> {
-    if (!Number.isInteger(userId) || userId <= 0) {
-      throw new BadRequestException('ID inválido');
-    }
-
-    const updated = await this.usersRepository.updateProfile(userId, dto.fullName);
-    if (!updated) throw new NotFoundException('Usuario no encontrado');
-
-    return this.mapToResponseDto(updated);
+  async updateProfile(
+    userId: number,
+    dto: UpdateProfileDto,
+  ): Promise<ResponseUserDto> {
+    return this.usersSelf.updateProfile(userId, dto);
   }
 
   /**
    * Cualquier usuario: cambiar su propia contraseña
    */
-  async changePassword(userId: number, dto: ChangePasswordDto): Promise<{ message: string }> {
-    if (!Number.isInteger(userId) || userId <= 0) {
-      throw new BadRequestException('ID inválido');
-    }
-
-    const email = await this.getEmailById(userId);
-    const user = await this.usersRepository.findByEmail(email);
-    if (!user) throw new NotFoundException('Usuario no encontrado');
-
-    const currentValid = await bcrypt.compare(dto.currentPassword, user.password_hash);
-    if (!currentValid) {
-      throw new UnauthorizedException('La contraseña actual es incorrecta');
-    }
-
-    if (dto.currentPassword === dto.newPassword) {
-      throw new BadRequestException('La nueva contraseña debe ser diferente a la actual');
-    }
-
-    const newHash = await bcrypt.hash(dto.newPassword, this.BCRYPT_ROUNDS);
-    const changed = await this.usersRepository.changePassword(userId, newHash);
-    if (!changed) throw new NotFoundException('Usuario no encontrado');
-
-    return { message: 'Contraseña actualizada correctamente' };
+  async changePassword(
+    userId: number,
+    dto: ChangePasswordDto,
+  ): Promise<{ message: string }> {
+    return this.usersSelf.changePassword(userId, dto);
   }
 
   /**
@@ -164,55 +131,31 @@ export class UsersService {
     targetUserId: number,
     isActive: boolean,
   ): Promise<ResponseUserDto> {
-    if (adminId === targetUserId && !isActive) {
-      throw new ForbiddenException('No puedes desactivar tu propia cuenta');
-    }
-
-    const updated = await this.usersRepository.setActiveStatus(targetUserId, isActive);
-    if (!updated) throw new NotFoundException('Usuario no encontrado');
-
-    return this.mapToResponseDto(updated);
+    return this.usersAdmin.setActiveStatus(adminId, targetUserId, isActive);
   }
 
   /**
    * Admin: cambiar rol
    */
-  async setRole(adminId: number, targetUserId: number, role: string): Promise<ResponseUserDto> {
-    if (adminId === targetUserId) {
-      throw new ForbiddenException('No puedes cambiar tu propio rol');
-    }
-
-    const updated = await this.usersRepository.setRole(targetUserId, role);
-    if (!updated) throw new NotFoundException('Usuario no encontrado');
-
-    return this.mapToResponseDto(updated);
+  async setRole(
+    adminId: number,
+    targetUserId: number,
+    role: string,
+  ): Promise<ResponseUserDto> {
+    return this.usersAdmin.setRole(adminId, targetUserId, role);
   }
 
   /**
    * Admin: listar usuarios con paginación
    */
-  async findAll(page = 1, limit = 20): Promise<{
+  async findAll(
+    page = 1,
+    limit = 20,
+  ): Promise<{
     data: ResponseUserDto[];
     meta: { total: number; page: number; limit: number; totalPages: number };
   }> {
-    const safePage = Math.max(1, page);
-    const safeLimit = Math.min(100, Math.max(1, limit));
-    const offset = (safePage - 1) * safeLimit;
-
-    const [rows, total] = await Promise.all([
-      this.usersRepository.findAll(safeLimit, offset),
-      this.usersRepository.countAll(),
-    ]);
-
-    return {
-      data: rows.map((u) => this.mapToResponseDto(u)),
-      meta: {
-        total,
-        page: safePage,
-        limit: safeLimit,
-        totalPages: Math.ceil(total / safeLimit),
-      },
-    };
+    return this.usersAdmin.findAll(page, limit);
   }
 
   /**
@@ -231,34 +174,10 @@ export class UsersService {
   }
 
   /**
-   * Mapear entidad de usuario a DTO de respuesta
-   * @param user - Usuario de BD
-   * @returns DTO sin información sensible
-   */
-  private mapToResponseDto(user: PublicUser | Omit<User, 'password_hash'>): ResponseUserDto {
-    return {
-      id: user.id,
-      email: user.email,
-      fullName: user.full_name,
-      role: user.role,
-      isActive: user.is_active,
-      lastLoginAt: user.last_login_at,
-      createdAt: user.created_at,
-      updatedAt: user.updated_at,
-    };
-  }
-
-  /**
    * Validar formato de email
    */
   private isValidEmail(email: string): boolean {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
-  }
-
-  private async getEmailById(id: number): Promise<string> {
-    const user = await this.usersRepository.findById(id);
-    if (!user) throw new NotFoundException('Usuario no encontrado');
-    return user.email;
   }
 }

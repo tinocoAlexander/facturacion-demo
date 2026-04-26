@@ -7,6 +7,11 @@ import { AuthService } from './auth.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { UsersModule } from '../users/users.module';
 import { LoginAttemptsService } from './security/login-attempts.service';
+import { RefreshTokensRepository } from './refresh-tokens.repository';
+import { AuthCredentialsService } from './services/auth-credentials.service';
+import { AuthSessionService } from './services/auth-session.service';
+import { AuthProfileService } from './services/auth-profile.service';
+import { RefreshTokenService } from './services/refresh-token.service';
 
 @Module({
   imports: [
@@ -17,12 +22,22 @@ import { LoginAttemptsService } from './security/login-attempts.service';
       useFactory: (configService: ConfigService) => ({
         secret: configService.getOrThrow<string>('JWT_SECRET'),
         signOptions: {
-          expiresIn: (configService.get<string>('JWT_EXPIRES_IN') || '15m') as any,
+          expiresIn: (configService.get<string>('JWT_EXPIRES_IN') ||
+            '15m') as any,
         },
       }),
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy, LoginAttemptsService],
+  providers: [
+    AuthService,
+    AuthCredentialsService,
+    AuthSessionService,
+    AuthProfileService,
+    RefreshTokenService,
+    JwtStrategy,
+    LoginAttemptsService,
+    RefreshTokensRepository,
+  ],
 })
 export class AuthModule {}
