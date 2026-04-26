@@ -1,8 +1,9 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Inject, Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
-import { UsersRepository } from '../../users/users.repository';
+import type { IUsersRepository } from '../../users/interfaces/users-repository.interface';
+import { I_USERS_REPOSITORY } from '../../users/interfaces/users-repository.interface';
 
 export interface JwtPayload {
   sub: number; // user id
@@ -17,12 +18,17 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
   constructor(
     config: ConfigService,
-    private readonly usersRepository: UsersRepository,
+    @Inject(I_USERS_REPOSITORY)
+    private readonly usersRepository: IUsersRepository,
   ) {
+    const publicKey = config.get<string>('JWT_PUBLIC_KEY');
+    const secret = config.get<string>('JWT_SECRET');
+
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: config.getOrThrow<string>('JWT_SECRET'),
+      secretOrKey: (publicKey ? publicKey.replace(/\\n/g, '\n') : secret) as string,
+      algorithms: publicKey ? ['RS256'] : ['HS256'],
     });
   }
 

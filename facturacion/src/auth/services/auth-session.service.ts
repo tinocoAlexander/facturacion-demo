@@ -1,7 +1,8 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Inject, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { AuditService } from '../../audit/audit.service';
-import { UsersRepository } from '../../users/users.repository';
+import type { IUsersRepository } from '../../users/interfaces/users-repository.interface';
+import { I_USERS_REPOSITORY } from '../../users/interfaces/users-repository.interface';
 import { MetricsService } from '../../metrics/metrics.service';
 import { RefreshTokenDto } from '../dtos';
 import { JwtPayload } from '../strategies/jwt.strategy';
@@ -11,7 +12,8 @@ import { RefreshTokenService } from './refresh-token.service';
 @Injectable()
 export class AuthSessionService {
   constructor(
-    private readonly users: UsersRepository,
+    @Inject(I_USERS_REPOSITORY)
+    private readonly users: IUsersRepository,
     private readonly jwt: JwtService,
     private readonly refreshTokenService: RefreshTokenService,
     private readonly audit: AuditService,

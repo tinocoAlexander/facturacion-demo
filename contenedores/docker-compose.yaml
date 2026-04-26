@@ -12,8 +12,8 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD}
       POSTGRES_DB: ${DB_NAME}
     # En producción, no exponer puertos al exterior. Usar red interna de Docker.
-    # ports:
-    #   - "${DB_PORT}:5432"
+    ports:
+      - "${DB_PORT}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -28,8 +28,8 @@ services:
     restart: always
     command: redis-server --requirepass ${REDIS_PASSWORD}
     # En producción, no exponer puertos al exterior. Usar red interna de Docker.
-    # ports:
-    #   - "6379:6379"
+    ports:
+      - "6379:6379"
     volumes:
       - redis_data:/data
     healthcheck:

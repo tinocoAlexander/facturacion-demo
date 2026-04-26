@@ -1,6 +1,7 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger, HttpStatus } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
-import { UsersRepository } from './users.repository';
+import type { IUsersRepository } from './interfaces/users-repository.interface';
+import { I_USERS_REPOSITORY } from './interfaces/users-repository.interface';
 import {
   ChangePasswordDto,
   CreateUserDto,
@@ -12,14 +13,14 @@ import { UsersAdminService } from './services/users-admin.service';
 import { UsersSelfService } from './services/users-self.service';
 import { mapToResponseUserDto } from './users.mapper';
 import { httpError } from '../common/errors/http-error';
-import { HttpStatus } from '@nestjs/common';
 
 @Injectable()
 export class UsersService {
   private readonly logger = new Logger(UsersService.name);
 
   constructor(
-    private readonly usersRepository: UsersRepository,
+    @Inject(I_USERS_REPOSITORY)
+    private readonly usersRepository: IUsersRepository,
     private readonly usersAdmin: UsersAdminService,
     private readonly usersSelf: UsersSelfService,
   ) {}

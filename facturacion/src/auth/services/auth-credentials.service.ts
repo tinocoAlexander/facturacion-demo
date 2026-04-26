@@ -1,13 +1,15 @@
 import {
   BadRequestException,
   HttpException,
+  Inject,
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { CreateUserDto } from '../../users/dtos';
-import { UsersRepository } from '../../users/users.repository';
+import type { IUsersRepository } from '../../users/interfaces/users-repository.interface';
+import { I_USERS_REPOSITORY } from '../../users/interfaces/users-repository.interface';
 import { AuditService } from '../../audit/audit.service';
 import { LoginDto } from '../dtos';
 import { JwtPayload } from '../strategies/jwt.strategy';
@@ -26,7 +28,8 @@ export type RequestContext = {
 @Injectable()
 export class AuthCredentialsService {
   constructor(
-    private readonly users: UsersRepository,
+    @Inject(I_USERS_REPOSITORY)
+    private readonly users: IUsersRepository,
     private readonly jwt: JwtService,
     private readonly loginAttempts: LoginAttemptsService,
     private readonly refreshTokenService: RefreshTokenService,

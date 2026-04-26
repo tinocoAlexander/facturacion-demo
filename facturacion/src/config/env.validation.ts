@@ -34,6 +34,16 @@ export const envValidationSchema = Joi.object({
     .messages({
       'string.min': 'JWT_SECRET debe tener al menos 32 caracteres para ser seguro',
     }),
+  JWT_PRIVATE_KEY: Joi.string().when('NODE_ENV', {
+    is: 'production',
+    then: Joi.required(),
+    otherwise: Joi.optional(),
+  }),
+  JWT_PUBLIC_KEY: Joi.string().when('NODE_ENV', {
+    is: 'production',
+    then: Joi.required(),
+    otherwise: Joi.optional(),
+  }),
   JWT_EXPIRES_IN: Joi.string().default('15m'),
 
   // Refresh tokens
@@ -101,4 +111,8 @@ export const envValidationSchema = Joi.object({
 
   // Cleanup
   CLEANUP_CRON: Joi.string().default('0 3 * * *'),
+
+  // Backups
+  BACKUP_CRON: Joi.string().default('0 4 * * *'),
+  BACKUP_PATH: Joi.string().default('./backups'),
 });

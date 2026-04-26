@@ -1,8 +1,9 @@
-import { Injectable, HttpStatus } from '@nestjs/common';
+import { Inject, Injectable, HttpStatus } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { AuditService } from '../../audit/audit.service';
 import { ChangePasswordDto, ResponseUserDto, UpdateProfileDto } from '../dtos';
-import { UsersRepository } from '../users.repository';
+import type { IUsersRepository } from '../interfaces/users-repository.interface';
+import { I_USERS_REPOSITORY } from '../interfaces/users-repository.interface';
 import { mapToResponseUserDto } from '../users.mapper';
 import { httpError } from '../../common/errors/http-error';
 
@@ -11,7 +12,8 @@ export class UsersSelfService {
   private readonly BCRYPT_ROUNDS = 12;
 
   constructor(
-    private readonly usersRepository: UsersRepository,
+    @Inject(I_USERS_REPOSITORY)
+    private readonly usersRepository: IUsersRepository,
     private readonly audit: AuditService,
   ) {}
 

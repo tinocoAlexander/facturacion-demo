@@ -7,9 +7,10 @@ import { Pool } from 'pg';
 import { InjectPool } from '../database/database.constants';
 import { USER_QUERIES } from '../database/queries/users.queries';
 import { User, PublicUser } from './users.types';
+import { IUsersRepository } from './interfaces/users-repository.interface';
 
 @Injectable()
-export class UsersRepository {
+export class UsersRepository implements IUsersRepository {
   private readonly logger = new Logger(UsersRepository.name);
 
   constructor(@InjectPool() private readonly pool: Pool) {}

@@ -18,6 +18,9 @@ RUN npm run build
 FROM node:20-alpine AS runtime
 WORKDIR /app
 
+# Instalamos postgresql-client para tener pg_dump (necesario para backups)
+RUN apk add --no-cache postgresql-client
+
 # Seteamos el entorno a producción
 ENV NODE_ENV=production
 
