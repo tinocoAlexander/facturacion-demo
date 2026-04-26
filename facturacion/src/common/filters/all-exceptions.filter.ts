@@ -65,7 +65,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
     } else {
       // Error no controlado (DB, etc.)
       const error = exception as CommonError;
-      
+
       this.logger.error(
         {
           err: isProduction ? undefined : exception,
@@ -97,15 +97,30 @@ export class AllExceptionsFilter implements ExceptionFilter {
     );
   }
 
-  private sanitizeErrorMessage(error: CommonError, isProduction: boolean): string {
+  private sanitizeErrorMessage(
+    error: CommonError,
+    isProduction: boolean,
+  ): string {
     if (!isProduction) return error.message || 'Internal server error';
 
-    // En producción, si detectamos que es un error de DB (e.g., de 'pg'), 
+    // En producción, si detectamos que es un error de DB (e.g., de 'pg'),
     // devolvemos un mensaje genérico para no exponer esquema.
-    const dbErrorKeywords = ['query', 'select', 'insert', 'update', 'delete', 'constraint', 'relation', 'column'];
+    const dbErrorKeywords = [
+      'query',
+      'select',
+      'insert',
+      'update',
+      'delete',
+      'constraint',
+      'relation',
+      'column',
+    ];
     const msg = (error.message || '').toLowerCase();
-    
-    if (dbErrorKeywords.some(keyword => msg.includes(keyword)) || error.code) {
+
+    if (
+      dbErrorKeywords.some((keyword) => msg.includes(keyword)) ||
+      error.code
+    ) {
       return 'Se produjo un error al procesar la solicitud en el servidor de datos';
     }
 

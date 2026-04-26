@@ -10,7 +10,7 @@ import { Reflector } from '@nestjs/core';
 import type { Request } from 'express';
 import { AuditService } from '../../audit/audit.service';
 
-type RequestWithUser = Request & { 
+type RequestWithUser = Request & {
   user?: { id?: number; role?: string };
   id?: string;
 };

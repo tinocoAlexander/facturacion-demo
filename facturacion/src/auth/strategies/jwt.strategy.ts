@@ -52,7 +52,9 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       this.activeCache.set(payload.sub, cached);
 
       if (!cached.active) {
-        throw new UnauthorizedException('La cuenta de usuario está desactivada');
+        throw new UnauthorizedException(
+          'La cuenta de usuario está desactivada',
+        );
       }
       return {
         id: payload.sub,
@@ -73,7 +75,9 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       !this.activeCache.has(payload.sub) &&
       this.activeCache.size >= this.CACHE_MAX_SIZE
     ) {
-      const oldestKey = this.activeCache.keys().next().value;
+      const oldestKey = this.activeCache.keys().next().value as
+        | number
+        | undefined;
       if (oldestKey !== undefined) {
         this.activeCache.delete(oldestKey);
       }

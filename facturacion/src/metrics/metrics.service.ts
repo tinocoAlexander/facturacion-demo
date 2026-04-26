@@ -1,5 +1,11 @@
 import { Injectable } from '@nestjs/common';
-import { Counter, Registry, collectDefaultMetrics, Histogram, Gauge } from 'prom-client';
+import {
+  Counter,
+  Registry,
+  collectDefaultMetrics,
+  Histogram,
+  Gauge,
+} from 'prom-client';
 
 @Injectable()
 export class MetricsService {
@@ -120,7 +126,12 @@ export class MetricsService {
   }
 
   // --- Methods for HTTP ---
-  recordHttpRequest(method: string, route: string, statusCode: number, duration: number): void {
+  recordHttpRequest(
+    method: string,
+    route: string,
+    statusCode: number,
+    duration: number,
+  ): void {
     const labels = { method, route, status_code: statusCode.toString() };
     this.httpRequestsTotal.inc(labels);
     this.httpRequestDurationSeconds.observe(labels, duration);
@@ -131,7 +142,11 @@ export class MetricsService {
     this.dbQueryDurationSeconds.observe({ operation }, durationSeconds);
   }
 
-  setDbPoolMetrics(metrics: { total: number; idle: number; waiting: number }): void {
+  setDbPoolMetrics(metrics: {
+    total: number;
+    idle: number;
+    waiting: number;
+  }): void {
     this.dbPoolTotalConnections.set(metrics.total);
     this.dbPoolIdleConnections.set(metrics.idle);
     this.dbPoolWaitingCount.set(metrics.waiting);

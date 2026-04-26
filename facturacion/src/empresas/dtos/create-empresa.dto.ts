@@ -23,8 +23,8 @@ export class CreateEmpresaDto {
     message:
       'RFC inválido. Formato: 3-4 letras, 6 dígitos (fecha), 3 alfanuméricos. Ejemplo: XAXX010101000',
   })
-  @Transform(({ value }) =>
-    typeof value === 'string' ? value.toUpperCase().trim() : value,
+  @Transform(({ value }): string =>
+    typeof value === 'string' ? value.toUpperCase().trim() : (value as string),
   )
   rfc: string;
 
@@ -33,7 +33,9 @@ export class CreateEmpresaDto {
   @IsNotEmpty()
   @MinLength(2)
   @MaxLength(255)
-  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
+  @Transform(({ value }): string =>
+    typeof value === 'string' ? value.trim() : (value as string),
+  )
   nombre_comercial: string;
 
   @ApiProperty({ example: 'MI EMPRESA SA DE CV' })
@@ -41,7 +43,9 @@ export class CreateEmpresaDto {
   @IsNotEmpty()
   @MinLength(2)
   @MaxLength(255)
-  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
+  @Transform(({ value }): string =>
+    typeof value === 'string' ? value.trim() : (value as string),
+  )
   razon_social: string;
 
   @ApiProperty({
@@ -51,19 +55,41 @@ export class CreateEmpresaDto {
   @IsString()
   @IsIn(
     [
-      '601', '603', '605', '606', '607', '608', '609', '610', '611', '612',
-      '614', '616', '620', '621', '622', '623', '624', '625', '626', '628',
-      '629', '630',
+      '601',
+      '603',
+      '605',
+      '606',
+      '607',
+      '608',
+      '609',
+      '610',
+      '611',
+      '612',
+      '614',
+      '616',
+      '620',
+      '621',
+      '622',
+      '623',
+      '624',
+      '625',
+      '626',
+      '628',
+      '629',
+      '630',
     ],
     {
-      message: 'Régimen fiscal inválido. Debe ser una clave del catálogo SAT CFDI 4.0',
+      message:
+        'Régimen fiscal inválido. Debe ser una clave del catálogo SAT CFDI 4.0',
     },
   )
   regimen_fiscal: string;
 
   @ApiProperty({ example: '06600' })
   @IsString()
-  @Matches(/^\d{5}$/, { message: 'Código postal debe tener exactamente 5 dígitos' })
+  @Matches(/^\d{5}$/, {
+    message: 'Código postal debe tener exactamente 5 dígitos',
+  })
   codigo_postal: string;
 
   @ApiProperty({ required: false, example: 'contacto@empresa.com' })
@@ -75,7 +101,7 @@ export class CreateEmpresaDto {
   @ApiProperty({ required: false, example: '5512345678' })
   @IsString()
   @IsOptional()
-  @Matches(/^[\d\s\-\+\(\)]{7,20}$/)
+  @Matches(/^[\d\s\-+()]{7,20}$/)
   @MaxLength(20)
   telefono?: string;
 

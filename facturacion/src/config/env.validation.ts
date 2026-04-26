@@ -28,12 +28,10 @@ export const envValidationSchema = Joi.object({
   DB_STATEMENT_TIMEOUT_MS: Joi.number().integer().min(1000).default(15000),
 
   // JWT
-  JWT_SECRET: Joi.string()
-    .min(32)
-    .required()
-    .messages({
-      'string.min': 'JWT_SECRET debe tener al menos 32 caracteres para ser seguro',
-    }),
+  JWT_SECRET: Joi.string().min(32).required().messages({
+    'string.min':
+      'JWT_SECRET debe tener al menos 32 caracteres para ser seguro',
+  }),
   JWT_PRIVATE_KEY: Joi.string().when('NODE_ENV', {
     is: 'production',
     then: Joi.required(),

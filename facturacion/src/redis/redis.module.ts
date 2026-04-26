@@ -15,7 +15,9 @@ import { RedisShutdown } from './redis.shutdown';
         const url = config.get<string>('REDIS_URL');
 
         if (!url) {
-          logger.warn('REDIS_URL not found. Redis features will be disabled (using memory fallback).');
+          logger.warn(
+            'REDIS_URL not found. Redis features will be disabled (using memory fallback).',
+          );
           return null;
         }
 

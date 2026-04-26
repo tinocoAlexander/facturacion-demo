@@ -1,4 +1,9 @@
-import { HttpException, HttpStatus, Injectable, Optional } from '@nestjs/common';
+import {
+  HttpException,
+  HttpStatus,
+  Injectable,
+  Optional,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Redis from 'ioredis';
 import { InjectRedis } from '../../redis/redis.constants';

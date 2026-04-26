@@ -25,7 +25,7 @@ import type { StringValue } from 'ms';
       useFactory: (configService: ConfigService) => {
         const privateKey = configService.get<string>('JWT_PRIVATE_KEY');
         const secret = configService.get<string>('JWT_SECRET');
-        
+
         return {
           // Si hay privateKey usamos RS256, si no, fallback a HS256
           privateKey: privateKey ? privateKey.replace(/\\n/g, '\n') : undefined,

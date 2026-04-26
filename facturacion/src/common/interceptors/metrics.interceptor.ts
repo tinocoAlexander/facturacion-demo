@@ -31,22 +31,29 @@ export class MetricsInterceptor implements NestInterceptor {
       tap(() => {
         const statusCode = response.statusCode;
         const duration = this.getDurationInSeconds(start);
-        
+
         // Obtenemos el path patrón si está disponible (e.g., /users/:id)
         // En NestJS con Express, está en request.route.path
-        const routePattern = (request as unknown as { route?: { path?: string } }).route?.path;
-        
+        const routePattern = (
+          request as unknown as { route?: { path?: string } }
+        ).route?.path;
+
         let route = routePattern;
-        
+
         if (!route) {
           // Normalización para evitar alta cardinalidad cuando no hay ruta definida (404, errores en guards, etc.)
           route = url
-            .replace(/\/\d+/g, '/:id')           // /123 -> /:id
-            .replace(/\?.*$/, '')                 // Quitar query string
-            .replace(/^\/api\/v1/, '');           // Quitar prefijo global
+            .replace(/\/\d+/g, '/:id') // /123 -> /:id
+            .replace(/\?.*$/, '') // Quitar query string
+            .replace(/^\/api\/v1/, ''); // Quitar prefijo global
         }
 
-        this.metrics.recordHttpRequest(String(method), String(route), statusCode, duration);
+        this.metrics.recordHttpRequest(
+          String(method),
+          String(route),
+          statusCode,
+          duration,
+        );
       }),
     );
   }

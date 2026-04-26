@@ -25,6 +25,7 @@ import { RolesGuard, Roles } from '../auth/guards/roles.guard';
 import { TenantGuard } from '../auth/guards/tenant.guard';
 import type { RequestWithTenant } from '../auth/guards/tenant.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { User } from '../users/users.types';
 import { EmpresasService } from './empresas.service';
 import {
   CreateEmpresaDto,
@@ -49,7 +50,7 @@ export class EmpresasController {
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Crear empresa (admin)' })
   @ApiCreatedResponse({ type: ResponseEmpresaDto })
-  crear(@CurrentUser() user: any, @Body() dto: CreateEmpresaDto) {
+  crear(@CurrentUser() user: User, @Body() dto: CreateEmpresaDto) {
     return this.empresas.crear(dto, user.id);
   }
 
@@ -99,7 +100,7 @@ export class EmpresasController {
   @Roles('admin')
   @ApiOperation({ summary: 'Activar/desactivar empresa (admin)' })
   setActivo(
-    @CurrentUser() user: any,
+    @CurrentUser() user: User,
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: SetActiveDto,
   ) {
@@ -111,7 +112,7 @@ export class EmpresasController {
   @Roles('admin')
   @ApiOperation({ summary: 'Asignar usuario a empresa (admin)' })
   asignarUsuario(
-    @CurrentUser() user: any,
+    @CurrentUser() user: User,
     @Param('id', ParseUUIDPipe) empresaId: string,
     @Body() dto: AssignUserDto,
   ) {

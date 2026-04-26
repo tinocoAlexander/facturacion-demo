@@ -4,7 +4,9 @@ import { InjectRedis } from './redis.constants';
 
 @Injectable()
 export class RedisShutdown implements OnApplicationShutdown {
-  constructor(@Optional() @InjectRedis() private readonly redis: Redis | null) {}
+  constructor(
+    @Optional() @InjectRedis() private readonly redis: Redis | null,
+  ) {}
 
   async onApplicationShutdown() {
     if (this.redis) {

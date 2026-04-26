@@ -292,7 +292,7 @@ describe('API (e2e)', () => {
         .post(api('/auth/login'))
         .send({ email: adminEmail, password })
         .expect(200);
-      adminToken = adminLoginRes.body.accessToken;
+      adminToken = (adminLoginRes.body as { accessToken: string }).accessToken;
 
       // Create normal user
       const userEmail = randomEmail();
@@ -300,12 +300,12 @@ describe('API (e2e)', () => {
         .post(api('/auth/register'))
         .send({ email: userEmail, password, fullName: 'User Empresa' })
         .expect(201);
-      userId = userRes.body.id;
+      userId = (userRes.body as { id: number }).id;
       const userLoginRes = await request(app.getHttpServer())
         .post(api('/auth/login'))
         .send({ email: userEmail, password })
         .expect(200);
-      userToken = userLoginRes.body.accessToken;
+      userToken = (userLoginRes.body as { accessToken: string }).accessToken;
     });
 
     it('admin puede crear empresa', async () => {
@@ -317,7 +317,7 @@ describe('API (e2e)', () => {
         .expect(201);
 
       expect(res.body).toHaveProperty('id');
-      expect(res.body.rfc).toBe(rfc);
+      expect((res.body as { rfc: string }).rfc).toBe(rfc);
     });
 
     it('RFC duplicado devuelve 409 con código EMPRESAS_RFC_DUPLICADO', async () => {
@@ -333,8 +333,9 @@ describe('API (e2e)', () => {
         .set('Authorization', `Bearer ${adminToken}`)
         .send(createEmpresaBody(rfc))
         .expect(409);
-
-      expect(res.body.code).toBe('EMPRESAS_RFC_DUPLICADO');
+      expect((res.body as { code: string }).code).toBe(
+        'EMPRESAS_RFC_DUPLICADO',
+      );
     });
 
     it('RFC con formato inválido devuelve 400 con VALIDATION_ERROR', async () => {
@@ -350,8 +351,7 @@ describe('API (e2e)', () => {
         .get(api('/empresas/mi-empresa'))
         .set('Authorization', `Bearer ${userToken}`)
         .expect(403);
-
-      expect(res.body.code).toBe('TENANT_REQUIRED');
+      expect((res.body as { code: string }).code).toBe('TENANT_REQUIRED');
     });
 
     it('usuario con empresa obtiene datos correctos en GET /empresas/mi-empresa', async () => {
@@ -362,7 +362,7 @@ describe('API (e2e)', () => {
         .send(createEmpresaBody(rfc))
         .expect(201);
 
-      const empresaId = empresaRes.body.id;
+      const empresaId = (empresaRes.body as { id: string }).id;
 
       // Assign user to empresa
       await request(app.getHttpServer())
@@ -372,22 +372,24 @@ describe('API (e2e)', () => {
         .expect(201);
 
       // Re-login to get new token with empresa_id
-      const userEmail = (
-        await pool.query('SELECT email FROM users WHERE id = $1', [userId])
-      ).rows[0].email;
+      const queryRes = await pool.query<{ email: string }>(
+        'SELECT email FROM users WHERE id = $1',
+        [userId],
+      );
+      const userEmail = queryRes.rows[0].email;
       const loginRes = await request(app.getHttpServer())
         .post(api('/auth/login'))
         .send({ email: userEmail, password: 'MyStrongP4ssword' })
         .expect(200);
-      const newToken = loginRes.body.accessToken;
+      const newToken = (loginRes.body as { accessToken: string }).accessToken;
 
       const miEmpresaRes = await request(app.getHttpServer())
         .get(api('/empresas/mi-empresa'))
         .set('Authorization', `Bearer ${newToken}`)
         .expect(200);
-
-      expect(miEmpresaRes.body.id).toBe(empresaId);
-      expect(miEmpresaRes.body.rfc).toBe(rfc);
+      const miEmpresaBody = miEmpresaRes.body as { id: string; rfc: string };
+      expect(miEmpresaBody.id).toBe(empresaId);
+      expect(miEmpresaBody.rfc).toBe(rfc);
     });
 
     it('admin puede listar todas las empresas con paginación', async () => {
@@ -395,10 +397,10 @@ describe('API (e2e)', () => {
         .get(api('/empresas?page=1&limit=10'))
         .set('Authorization', `Bearer ${adminToken}`)
         .expect(200);
-
+      const body = res.body as { data: unknown[] };
       expect(res.body).toHaveProperty('data');
       expect(res.body).toHaveProperty('meta');
-      expect(Array.isArray(res.body.data)).toBe(true);
+      expect(Array.isArray(body.data)).toBe(true);
     });
   });
 

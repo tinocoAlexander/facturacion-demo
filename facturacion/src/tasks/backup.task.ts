@@ -1,4 +1,9 @@
-import { Injectable, Logger, InternalServerErrorException, OnModuleInit } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  InternalServerErrorException,
+  OnModuleInit,
+} from '@nestjs/common';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { ConfigService } from '@nestjs/config';
 import { CronJob } from 'cron';
@@ -21,10 +26,11 @@ export class BackupTask implements OnModuleInit {
   ) {}
 
   onModuleInit() {
-    const cronExpression = this.config.get<string>('BACKUP_CRON') || '0 4 * * *';
+    const cronExpression =
+      this.config.get<string>('BACKUP_CRON') || '0 4 * * *';
 
     const job = new CronJob(cronExpression, () => {
-      this.handleBackup();
+      void this.handleBackup();
     });
 
     this.schedulerRegistry.addCronJob('db-backup', job);
@@ -44,9 +50,16 @@ export class BackupTask implements OnModuleInit {
     const backupPath = this.config.get<string>('BACKUP_PATH') || './backups';
 
     // 1. Validación de Path Traversal
-    if (backupPath.includes('..') || !normalize(backupPath).startsWith(normalize(backupPath))) {
-      this.logger.error(`Ruta de backup inválida (Path Traversal detectado): ${backupPath}`);
-      throw new InternalServerErrorException('Configuración de backup insegura');
+    if (
+      backupPath.includes('..') ||
+      !normalize(backupPath).startsWith(normalize(backupPath))
+    ) {
+      this.logger.error(
+        `Ruta de backup inválida (Path Traversal detectado): ${backupPath}`,
+      );
+      throw new InternalServerErrorException(
+        'Configuración de backup insegura',
+      );
     }
 
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
@@ -59,22 +72,31 @@ export class BackupTask implements OnModuleInit {
 
       // 2. Uso de execFile para prevenir Shell Injection
       // 3. Paso de PGPASSWORD vía environment variables, no en el string del comando
-      const env = { 
-        ...process.env, 
-        PGPASSWORD: password 
+      const env = {
+        ...process.env,
+        PGPASSWORD: password,
       };
 
       // 4. Argumentos pasados como array para evitar interpretación del shell
-      await execFileAsync('pg_dump', [
-        '-h', host || 'localhost',
-        '-p', String(port),
-        '-U', user || 'postgres',
-        '-d', db || '',
-        '-f', fullPath
-      ], { env });
+      await execFileAsync(
+        'pg_dump',
+        [
+          '-h',
+          host || 'localhost',
+          '-p',
+          String(port),
+          '-U',
+          user || 'postgres',
+          '-d',
+          db || '',
+          '-f',
+          fullPath,
+        ],
+        { env },
+      );
 
       this.logger.log(`Backup completado exitosamente: ${fullPath}`);
-      
+
       await this.audit.log('SYSTEM_DB_BACKUP', {
         metadata: {
           filename,

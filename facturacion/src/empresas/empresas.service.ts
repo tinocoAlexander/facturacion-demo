@@ -1,10 +1,12 @@
 import { Injectable, HttpStatus, Inject } from '@nestjs/common';
 import { EmpresasAdminService } from './services/empresas-admin.service';
 import { EmpresasSelfService } from './services/empresas-self.service';
-import { CreateEmpresaDto, UpdateEmpresaDto, ResponseEmpresaDto } from './dtos/index.js';
 import {
-  I_EMPRESAS_REPOSITORY,
-} from './interfaces/empresas-repository.interface';
+  CreateEmpresaDto,
+  UpdateEmpresaDto,
+  ResponseEmpresaDto,
+} from './dtos/index.js';
+import { I_EMPRESAS_REPOSITORY } from './interfaces/empresas-repository.interface';
 import type { IEmpresasRepository } from './interfaces/empresas-repository.interface';
 import { mapToResponseEmpresaDto } from './empresas.mapper';
 import { httpError } from '../common/errors/http-error';

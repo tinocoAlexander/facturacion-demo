@@ -19,10 +19,11 @@ export class CleanupTask implements OnModuleInit {
   ) {}
 
   onModuleInit() {
-    const cronExpression = this.config.get<string>('CLEANUP_CRON') || '0 3 * * *';
-    
+    const cronExpression =
+      this.config.get<string>('CLEANUP_CRON') || '0 3 * * *';
+
     const job = new CronJob(cronExpression, () => {
-      this.handleCleanup();
+      void this.handleCleanup();
     });
 
     this.schedulerRegistry.addCronJob('token-cleanup', job);

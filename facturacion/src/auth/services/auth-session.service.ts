@@ -96,7 +96,7 @@ export class AuthSessionService {
 
   async logout(dto: RefreshTokenDto, ctx?: RequestContext) {
     await this.refreshTokenService.revokeRawToken(dto.refreshToken);
-    
+
     // Decrementamos el contador de sesiones activas al cerrar sesión
     this.metrics.decActiveSessions();
 

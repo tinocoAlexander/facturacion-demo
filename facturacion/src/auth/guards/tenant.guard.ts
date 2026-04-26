@@ -7,9 +7,7 @@ import {
 } from '@nestjs/common';
 import { Request } from 'express';
 import { AuditService } from '../../audit/audit.service';
-import {
-  I_EMPRESAS_REPOSITORY,
-} from '../../empresas/interfaces/empresas-repository.interface';
+import { I_EMPRESAS_REPOSITORY } from '../../empresas/interfaces/empresas-repository.interface';
 import type { IEmpresasRepository } from '../../empresas/interfaces/empresas-repository.interface';
 import { Empresa } from '../../empresas/empresas.types';
 
@@ -65,7 +63,7 @@ export class TenantGuard implements CanActivate {
     }
 
     // Disponible para controllers: @Request() req → req.empresa
-    (request as any)['empresa'] = empresa;
+    (request as RequestWithTenant).empresa = empresa;
     return true;
   }
 
@@ -78,7 +76,7 @@ export class TenantGuard implements CanActivate {
 
     // LRU: si lleno, eliminar el más antiguo
     if (this.cache.size >= this.CACHE_MAX) {
-      const oldest = this.cache.keys().next().value;
+      const oldest = this.cache.keys().next().value as string | undefined;
       if (oldest) this.cache.delete(oldest);
     }
 

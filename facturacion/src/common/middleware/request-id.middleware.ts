@@ -16,7 +16,7 @@ export class RequestIdMiddleware implements NestMiddleware {
     const isValidIncoming =
       typeof incomingId === 'string' && this.UUID_V4_REGEX.test(incomingId);
 
-    const requestId = isValidIncoming ? (incomingId as string) : randomUUID();
+    const requestId = isValidIncoming ? incomingId : randomUUID();
 
     // Inyectamos el ID en el request para que esté disponible en logs y filtros
     req['id'] = requestId;
