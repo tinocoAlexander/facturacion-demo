@@ -113,4 +113,7 @@ export const envValidationSchema = Joi.object({
   // Backups
   BACKUP_CRON: Joi.string().default('0 4 * * *'),
   BACKUP_PATH: Joi.string().default('./backups'),
+
+  // CSD Encryption
+  CSD_ENCRYPTION_KEY: Joi.string().hex().length(64).required(),
 });
