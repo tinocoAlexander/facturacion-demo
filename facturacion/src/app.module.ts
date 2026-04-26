@@ -11,6 +11,7 @@ import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { EmpresasModule } from './empresas/empresas.module';
 import { CsdsModule } from './csds/csds.module';
+import { CatalogosModule } from './catalogos/catalogos.module';
 import { envValidationSchema } from './config/env.validation';
 import { AuditModule } from './audit/audit.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
@@ -59,6 +60,7 @@ import type { ValidationError } from 'class-validator';
     AuthModule,
     UsersModule,
     CsdsModule,
+    CatalogosModule,
   ],
   providers: [
     // Validación global de DTOs — aplica a todos los controllers
