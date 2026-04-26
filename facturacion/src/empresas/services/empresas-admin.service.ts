@@ -8,7 +8,6 @@ import { httpError } from '../../common/errors/http-error';
 
 @Injectable()
 export class EmpresasAdminService {
-  private readonly logger = new Logger(EmpresasAdminService.name);
 
   constructor(
     @Inject(I_EMPRESAS_REPOSITORY)
@@ -99,6 +98,15 @@ export class EmpresasAdminService {
         HttpStatus.NOT_FOUND,
         'EMPRESAS_NOT_FOUND',
         'Empresa no encontrada',
+      );
+    }
+
+    const assignedEmpresa = await this.repo.findByUser(userId);
+    if (assignedEmpresa) {
+      throw httpError(
+        HttpStatus.CONFLICT,
+        'EMPRESAS_USER_ALREADY_ASSIGNED',
+        'El usuario ya pertenece a otra empresa',
       );
     }
 

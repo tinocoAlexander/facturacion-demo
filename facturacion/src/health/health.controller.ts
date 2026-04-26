@@ -5,6 +5,7 @@ import {
   HealthCheck,
 } from '@nestjs/terminus';
 import { DatabaseHealthIndicator } from './database-health.indicator';
+import { RedisHealthIndicator } from './redis-health.indicator';
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 
 @ApiTags('health')
@@ -14,6 +15,7 @@ export class HealthController {
     private health: HealthCheckService,
     private http: HttpHealthIndicator,
     private dbHealth: DatabaseHealthIndicator,
+    private redisHealth: RedisHealthIndicator,
   ) {}
 
   @ApiOperation({ summary: 'Health check' })
@@ -21,6 +23,9 @@ export class HealthController {
   @Get()
   @HealthCheck()
   check() {
-    return this.health.check([() => this.dbHealth.isHealthy('database')]);
+    return this.health.check([
+      () => this.dbHealth.isHealthy('database'),
+      () => this.redisHealth.isHealthy('redis'),
+    ]);
   }
 }

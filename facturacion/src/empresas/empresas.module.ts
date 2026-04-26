@@ -5,10 +5,10 @@ import { EmpresasRepository } from './empresas.repository';
 import { I_EMPRESAS_REPOSITORY } from './interfaces/empresas-repository.interface';
 import { EmpresasAdminService } from './services/empresas-admin.service';
 import { EmpresasSelfService } from './services/empresas-self.service';
-import { AuditModule } from '../audit/audit.module';
+
 
 @Module({
-  imports: [AuditModule],
+  imports: [],
   controllers: [EmpresasController],
   providers: [
     EmpresasService,

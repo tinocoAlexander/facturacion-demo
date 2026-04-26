@@ -8,7 +8,6 @@ import { httpError } from '../../common/errors/http-error';
 
 @Injectable()
 export class EmpresasSelfService {
-  private readonly logger = new Logger(EmpresasSelfService.name);
 
   constructor(
     @Inject(I_EMPRESAS_REPOSITORY)
@@ -19,6 +18,7 @@ export class EmpresasSelfService {
   async actualizar(
     empresaId: string,
     dto: UpdateEmpresaDto,
+    actorUserId: number,
   ): Promise<ResponseEmpresaDto> {
     const updated = await this.repo.update(empresaId, dto);
     if (!updated) {
@@ -30,9 +30,8 @@ export class EmpresasSelfService {
     }
 
     await this.audit.log('EMPRESA_UPDATE', {
-      actorUserId: 0, // Placeholder, usually we log the user id but prompt says actorUserId: empresaId?
-      // Wait, prompt says "actorUserId: empresaId". OK.
-      metadata: { campos: Object.keys(dto) },
+      actorUserId,
+      metadata: { empresaId, campos: Object.keys(dto) },
     });
 
     return mapToResponseEmpresaDto(updated);

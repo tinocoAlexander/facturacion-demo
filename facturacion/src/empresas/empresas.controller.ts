@@ -82,7 +82,7 @@ export class EmpresasController {
     @Request() req: RequestWithTenant,
     @Body() dto: UpdateEmpresaDto,
   ) {
-    return this.empresas.actualizar(req.empresa.id, dto);
+    return this.empresas.actualizar(req.empresa.id, dto, req.user!.id);
   }
 
   // ── RUTAS ADMIN (CONTINUACIÓN) ──────────────────
@@ -107,6 +107,7 @@ export class EmpresasController {
     return this.empresas.setActivo(user.id, id, dto.isActive);
   }
 
+  @HttpCode(HttpStatus.OK)
   @Post(':id/usuarios')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin')
