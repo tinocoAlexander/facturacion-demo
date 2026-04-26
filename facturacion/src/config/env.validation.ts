@@ -115,5 +115,14 @@ export const envValidationSchema = Joi.object({
   BACKUP_PATH: Joi.string().default('./backups'),
 
   // CSD Encryption
-  CSD_ENCRYPTION_KEY: Joi.string().hex().length(64).required(),
+  CSD_ENCRYPTION_KEY: Joi.string()
+    .hex()
+    .length(64)
+    .when('NODE_ENV', {
+      is: 'production',
+      then: Joi.required(),
+      otherwise: Joi.default(
+        'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+      ),
+    }),
 });

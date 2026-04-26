@@ -3,6 +3,11 @@ import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { App } from 'supertest/types';
 import type { Pool } from 'pg';
+
+// Configurar variables de entorno antes de importar AppModule para evitar fallos en validación Joi
+process.env.NODE_ENV = 'test';
+process.env.CSD_ENCRYPTION_KEY = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855';
+
 import { AppModule } from './../src/app.module';
 import { DATABASE_POOL } from './../src/database/database.constants';
 
@@ -18,18 +23,10 @@ describe('API (e2e)', () => {
 
   beforeAll(() => {
     // Ajustes para que el e2e sea determinista
-    process.env.NODE_ENV = process.env.NODE_ENV || 'test';
-    process.env.LOGIN_MAX_ATTEMPTS_EMAIL =
-      process.env.LOGIN_MAX_ATTEMPTS_EMAIL || '5';
-    process.env.LOGIN_MAX_ATTEMPTS_IP =
-      process.env.LOGIN_MAX_ATTEMPTS_IP || '10';
-    process.env.LOGIN_ATTEMPT_WINDOW_MS =
-      process.env.LOGIN_ATTEMPT_WINDOW_MS || '60000';
-    process.env.LOGIN_ATTEMPT_BLOCK_MS =
-      process.env.LOGIN_ATTEMPT_BLOCK_MS || '60000';
-    process.env.CSD_ENCRYPTION_KEY =
-      process.env.CSD_ENCRYPTION_KEY ||
-      'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855';
+    process.env.LOGIN_MAX_ATTEMPTS_EMAIL = '5';
+    process.env.LOGIN_MAX_ATTEMPTS_IP = '10';
+    process.env.LOGIN_ATTEMPT_WINDOW_MS = '60000';
+    process.env.LOGIN_ATTEMPT_BLOCK_MS = '60000';
   });
 
   beforeAll(async () => {
