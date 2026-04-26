@@ -6,6 +6,7 @@ import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { UsersModule } from '../users/users.module';
+import { EmpresasModule } from '../empresas/empresas.module';
 import { LoginAttemptsService } from './security/login-attempts.service';
 import { RefreshTokensRepository } from './refresh-tokens.repository';
 import { AuthCredentialsService } from './services/auth-credentials.service';
@@ -18,6 +19,7 @@ import type { StringValue } from 'ms';
   imports: [
     PassportModule,
     UsersModule,
+    EmpresasModule,
     JwtModule.registerAsync({
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => {

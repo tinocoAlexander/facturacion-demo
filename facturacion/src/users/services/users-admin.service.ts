@@ -22,7 +22,7 @@ export class UsersAdminService {
     dto: CreateUserDto,
     ctx?: { actorUserId?: number; ip?: string; userAgent?: string },
   ): Promise<ResponseUserDto> {
-    const { email, password, fullName } = dto;
+    const { email, password, fullName, empresaId } = dto;
 
     const userExists = await this.usersRepository.emailExists(email);
     if (userExists) {
@@ -41,6 +41,7 @@ export class UsersAdminService {
       email,
       passwordHash,
       fullName,
+      empresaId,
     );
 
     await this.audit.log('ADMIN_CREATE_USER', {

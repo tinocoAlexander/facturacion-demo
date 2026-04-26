@@ -16,6 +16,9 @@ export class ResponseUserDto {
   @ApiProperty({ example: true })
   isActive!: boolean;
 
+  @ApiProperty({ example: 'uuid-empresa', nullable: true })
+  empresaId!: string | null;
+
   @ApiProperty({ example: '2026-04-24T12:34:56.000Z', nullable: true })
   lastLoginAt!: Date | null;
 

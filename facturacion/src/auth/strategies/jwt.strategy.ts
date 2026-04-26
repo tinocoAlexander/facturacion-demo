@@ -6,14 +6,18 @@ import type { IUsersRepository } from '../../users/interfaces/users-repository.i
 import { I_USERS_REPOSITORY } from '../../users/interfaces/users-repository.interface';
 
 export interface JwtPayload {
-  sub: number; // user id
+  sub: number;
   email: string;
   role: 'user' | 'admin';
+  empresa_id: string | null; // null para admins del sistema
 }
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
-  private readonly activeCache = new Map<number, { active: boolean; expiry: number }>();
+  private readonly activeCache = new Map<
+    number,
+    { active: boolean; empresa_id: string | null; expiry: number }
+  >();
   private readonly CACHE_TTL_MS = 30000;
   private readonly CACHE_MAX_SIZE = 5000;
 
@@ -28,7 +32,9 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: (publicKey ? publicKey.replace(/\\n/g, '\n') : secret) as string,
+      secretOrKey: (publicKey
+        ? publicKey.replace(/\\n/g, '\n')
+        : secret) as string,
       algorithms: publicKey ? ['RS256'] : ['HS256'],
     });
   }
@@ -48,16 +54,25 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       if (!cached.active) {
         throw new UnauthorizedException('La cuenta de usuario está desactivada');
       }
-      return { id: payload.sub, email: payload.email, role: payload.role };
+      return {
+        id: payload.sub,
+        email: payload.email,
+        role: payload.role,
+        empresa_id: cached.empresa_id,
+      };
     }
 
     // Consulta ligera (ya optimizada en el repo para traer campos básicos)
     const user = await this.usersRepository.findById(payload.sub);
-    
+
     const isActive = user?.is_active ?? false;
+    const empresaId = user?.empresa_id ?? null;
 
     // Implementación de LRU: si el cache está lleno, eliminamos el más antiguo (el primero del Map)
-    if (!this.activeCache.has(payload.sub) && this.activeCache.size >= this.CACHE_MAX_SIZE) {
+    if (
+      !this.activeCache.has(payload.sub) &&
+      this.activeCache.size >= this.CACHE_MAX_SIZE
+    ) {
       const oldestKey = this.activeCache.keys().next().value;
       if (oldestKey !== undefined) {
         this.activeCache.delete(oldestKey);
@@ -66,6 +81,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
     this.activeCache.set(payload.sub, {
       active: isActive,
+      empresa_id: empresaId,
       expiry: now + this.CACHE_TTL_MS,
     });
 
@@ -77,6 +93,11 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException('La cuenta de usuario está desactivada');
     }
 
-    return { id: payload.sub, email: payload.email, role: payload.role };
+    return {
+      id: payload.sub,
+      email: payload.email,
+      role: payload.role,
+      empresa_id: empresaId,
+    };
   }
 }

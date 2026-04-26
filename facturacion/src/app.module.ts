@@ -9,6 +9,7 @@ import { HealthModule } from './health/health.module';
 import { DatabaseModule } from './database/database.module';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
+import { EmpresasModule } from './empresas/empresas.module';
 import { envValidationSchema } from './config/env.validation';
 import { AuditModule } from './audit/audit.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
@@ -53,6 +54,7 @@ import type { ValidationError } from 'class-validator';
     MetricsModule,
     RedisModule,
     TasksModule,
+    EmpresasModule,
     AuthModule,
     UsersModule,
   ],

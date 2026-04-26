@@ -1,6 +1,6 @@
 export const USER_QUERIES = {
   FIND_BY_EMAIL: `
-    SELECT id, email, password_hash, full_name, role, is_active,
+    SELECT id, email, password_hash, full_name, role, is_active, empresa_id,
            created_at, updated_at, last_login_at
     FROM users
     WHERE email = $1
@@ -8,7 +8,7 @@ export const USER_QUERIES = {
   `,
 
   FIND_BY_ID: `
-    SELECT id, email, full_name, role, is_active,
+    SELECT id, email, full_name, role, is_active, empresa_id,
            created_at, updated_at, last_login_at
     FROM users
     WHERE id = $1
@@ -16,7 +16,7 @@ export const USER_QUERIES = {
   `,
 
   FIND_BY_ID_WITH_HASH: `
-    SELECT id, email, password_hash, full_name, role, is_active,
+    SELECT id, email, password_hash, full_name, role, is_active, empresa_id,
            created_at, updated_at, last_login_at
     FROM users
     WHERE id = $1
@@ -24,7 +24,7 @@ export const USER_QUERIES = {
   `,
 
   FIND_ACTIVE_BY_EMAIL: `
-    SELECT id, email, password_hash, full_name, role, is_active,
+    SELECT id, email, password_hash, full_name, role, is_active, empresa_id,
            created_at, updated_at, last_login_at
     FROM users
     WHERE email = $1
@@ -33,9 +33,9 @@ export const USER_QUERIES = {
   `,
 
   CREATE: `
-    INSERT INTO users (email, password_hash, full_name)
-    VALUES ($1, $2, $3)
-    RETURNING id, email, full_name, role, is_active, created_at, updated_at
+    INSERT INTO users (email, password_hash, full_name, empresa_id)
+    VALUES ($1, $2, $3, $4)
+    RETURNING id, email, full_name, role, is_active, empresa_id, created_at, updated_at
   `,
 
   UPDATE_LAST_LOGIN: `
@@ -53,7 +53,7 @@ export const USER_QUERIES = {
     SET full_name = $1
     WHERE id = $2
       AND is_active = true
-    RETURNING id, email, full_name, role, is_active,
+    RETURNING id, email, full_name, role, is_active, empresa_id,
               last_login_at, created_at, updated_at
   `,
 
@@ -69,7 +69,7 @@ export const USER_QUERIES = {
     UPDATE users
     SET is_active = $1
     WHERE id = $2
-    RETURNING id, email, full_name, role, is_active,
+    RETURNING id, email, full_name, role, is_active, empresa_id,
               last_login_at, created_at, updated_at
   `,
 
@@ -77,12 +77,12 @@ export const USER_QUERIES = {
     UPDATE users
     SET role = $1
     WHERE id = $2
-    RETURNING id, email, full_name, role, is_active,
+    RETURNING id, email, full_name, role, is_active, empresa_id,
               last_login_at, created_at, updated_at
   `,
 
   FIND_ALL_PAGINATED: `
-    SELECT id, email, full_name, role, is_active,
+    SELECT id, email, full_name, role, is_active, empresa_id,
            last_login_at, created_at, updated_at
     FROM users
     ORDER BY created_at DESC

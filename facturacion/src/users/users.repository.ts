@@ -75,12 +75,14 @@ export class UsersRepository implements IUsersRepository {
     email: string,
     passwordHash: string,
     fullName: string,
+    empresaId: string | null = null,
   ): Promise<PublicUser> {
     try {
       const { rows } = await this.pool.query<PublicUser>(USER_QUERIES.CREATE, [
         email,
         passwordHash,
         fullName,
+        empresaId,
       ]);
       return rows[0];
     } catch (err) {

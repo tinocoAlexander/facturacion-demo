@@ -5,6 +5,7 @@ export interface User {
   full_name: string;
   role: 'user' | 'admin';
   is_active: boolean;
+  empresa_id: string | null;
   last_login_at: Date | null;
   created_at: Date;
   updated_at: Date;

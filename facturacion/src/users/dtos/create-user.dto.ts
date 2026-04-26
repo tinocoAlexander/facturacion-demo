@@ -4,6 +4,8 @@ import {
   MinLength,
   MaxLength,
   Matches,
+  IsOptional,
+  IsUUID,
 } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
@@ -40,4 +42,13 @@ export class CreateUserDto {
   @MinLength(3, { message: 'Nombre debe tener mínimo 3 caracteres' })
   @MaxLength(100, { message: 'Nombre no puede exceder 100 caracteres' })
   fullName!: string;
+
+  @ApiProperty({
+    example: 'uuid-de-empresa',
+    description: 'ID de la empresa asociada',
+    required: false,
+  })
+  @IsOptional()
+  @IsUUID()
+  empresaId?: string;
 }

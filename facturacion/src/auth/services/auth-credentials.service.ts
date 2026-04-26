@@ -47,7 +47,12 @@ export class AuthCredentialsService {
     }
 
     const passwordHash = await bcrypt.hash(dto.password, BCRYPT_ROUNDS);
-    const user = await this.users.create(dto.email, passwordHash, dto.fullName);
+    const user = await this.users.create(
+      dto.email,
+      passwordHash,
+      dto.fullName,
+      dto.empresaId,
+    );
 
     await this.audit.log('AUTH_REGISTER', {
       actorUserId: user.id,
@@ -124,6 +129,7 @@ export class AuthCredentialsService {
       sub: user.id,
       email: user.email,
       role: user.role,
+      empresa_id: user.empresa_id ?? null,
     };
     const accessToken = this.jwt.sign(payload);
     const refreshToken = await this.refreshTokenService.issueForUser(user.id);

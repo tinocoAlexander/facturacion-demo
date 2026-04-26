@@ -10,6 +10,7 @@ export function mapToResponseUserDto(
     fullName: user.full_name,
     role: user.role,
     isActive: user.is_active,
+    empresaId: user.empresa_id,
     lastLoginAt: user.last_login_at,
     createdAt: user.created_at,
     updatedAt: user.updated_at,

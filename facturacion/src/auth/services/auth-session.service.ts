@@ -69,6 +69,7 @@ export class AuthSessionService {
       sub: user.id,
       email: user.email,
       role: user.role,
+      empresa_id: user.empresa_id,
     };
     const accessToken = this.jwt.sign(payload);
 

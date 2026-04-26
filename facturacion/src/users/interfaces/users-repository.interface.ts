@@ -8,7 +8,12 @@ export interface IUsersRepository {
   findById(id: number): Promise<PublicUser | null>;
   findByIdWithHash(id: number): Promise<User | null>;
   emailExists(email: string): Promise<boolean>;
-  create(email: string, passwordHash: string, fullName: string): Promise<PublicUser>;
+  create(
+    email: string,
+    passwordHash: string,
+    fullName: string,
+    empresaId?: string | null,
+  ): Promise<PublicUser>;
   updateLastLogin(id: number): Promise<void>;
   updateProfile(id: number, fullName: string): Promise<PublicUser | null>;
   changePassword(id: number, newPasswordHash: string): Promise<boolean>;

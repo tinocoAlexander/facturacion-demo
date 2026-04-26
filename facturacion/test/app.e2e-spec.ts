@@ -262,6 +262,146 @@ describe('API (e2e)', () => {
       .expect(429);
   });
 
+  describe('EmpresasModule (e2e)', () => {
+    const randomRfc = () => `TEST${String(Date.now()).slice(-6)}AAA`;
+    const createEmpresaBody = (rfc: string) => ({
+      rfc,
+      nombre_comercial: 'Empresa Test',
+      razon_social: 'Empresa Test S.A. de C.V.',
+      regimen_fiscal: '601',
+      codigo_postal: '34000',
+      email_contacto: 'test@empresa.com',
+    });
+
+    let adminToken: string;
+    let userToken: string;
+    let userId: number;
+
+    beforeAll(async () => {
+      // Create admin
+      const adminEmail = randomEmail();
+      const password = 'MyStrongP4ssword';
+      await request(app.getHttpServer())
+        .post(api('/auth/register'))
+        .send({ email: adminEmail, password, fullName: 'Admin Empresa' })
+        .expect(201);
+      await pool.query(`UPDATE users SET role = 'admin' WHERE email = $1`, [
+        adminEmail,
+      ]);
+      const adminLoginRes = await request(app.getHttpServer())
+        .post(api('/auth/login'))
+        .send({ email: adminEmail, password })
+        .expect(200);
+      adminToken = adminLoginRes.body.accessToken;
+
+      // Create normal user
+      const userEmail = randomEmail();
+      const userRes = await request(app.getHttpServer())
+        .post(api('/auth/register'))
+        .send({ email: userEmail, password, fullName: 'User Empresa' })
+        .expect(201);
+      userId = userRes.body.id;
+      const userLoginRes = await request(app.getHttpServer())
+        .post(api('/auth/login'))
+        .send({ email: userEmail, password })
+        .expect(200);
+      userToken = userLoginRes.body.accessToken;
+    });
+
+    it('admin puede crear empresa', async () => {
+      const rfc = randomRfc();
+      const res = await request(app.getHttpServer())
+        .post(api('/empresas'))
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send(createEmpresaBody(rfc))
+        .expect(201);
+
+      expect(res.body).toHaveProperty('id');
+      expect(res.body.rfc).toBe(rfc);
+    });
+
+    it('RFC duplicado devuelve 409 con código EMPRESAS_RFC_DUPLICADO', async () => {
+      const rfc = randomRfc();
+      await request(app.getHttpServer())
+        .post(api('/empresas'))
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send(createEmpresaBody(rfc))
+        .expect(201);
+
+      const res = await request(app.getHttpServer())
+        .post(api('/empresas'))
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send(createEmpresaBody(rfc))
+        .expect(409);
+
+      expect(res.body.code).toBe('EMPRESAS_RFC_DUPLICADO');
+    });
+
+    it('RFC con formato inválido devuelve 400 con VALIDATION_ERROR', async () => {
+      await request(app.getHttpServer())
+        .post(api('/empresas'))
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send(createEmpresaBody('rfc123'))
+        .expect(400);
+    });
+
+    it('usuario sin empresa_id obtiene TENANT_REQUIRED al llamar mi-empresa', async () => {
+      const res = await request(app.getHttpServer())
+        .get(api('/empresas/mi-empresa'))
+        .set('Authorization', `Bearer ${userToken}`)
+        .expect(403);
+
+      expect(res.body.code).toBe('TENANT_REQUIRED');
+    });
+
+    it('usuario con empresa obtiene datos correctos en GET /empresas/mi-empresa', async () => {
+      const rfc = randomRfc();
+      const empresaRes = await request(app.getHttpServer())
+        .post(api('/empresas'))
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send(createEmpresaBody(rfc))
+        .expect(201);
+
+      const empresaId = empresaRes.body.id;
+
+      // Assign user to empresa
+      await request(app.getHttpServer())
+        .post(api(`/empresas/${empresaId}/usuarios`))
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ userId })
+        .expect(201);
+
+      // Re-login to get new token with empresa_id
+      const userEmail = (
+        await pool.query('SELECT email FROM users WHERE id = $1', [userId])
+      ).rows[0].email;
+      const loginRes = await request(app.getHttpServer())
+        .post(api('/auth/login'))
+        .send({ email: userEmail, password: 'MyStrongP4ssword' })
+        .expect(200);
+      const newToken = loginRes.body.accessToken;
+
+      const miEmpresaRes = await request(app.getHttpServer())
+        .get(api('/empresas/mi-empresa'))
+        .set('Authorization', `Bearer ${newToken}`)
+        .expect(200);
+
+      expect(miEmpresaRes.body.id).toBe(empresaId);
+      expect(miEmpresaRes.body.rfc).toBe(rfc);
+    });
+
+    it('admin puede listar todas las empresas con paginación', async () => {
+      const res = await request(app.getHttpServer())
+        .get(api('/empresas?page=1&limit=10'))
+        .set('Authorization', `Bearer ${adminToken}`)
+        .expect(200);
+
+      expect(res.body).toHaveProperty('data');
+      expect(res.body).toHaveProperty('meta');
+      expect(Array.isArray(res.body.data)).toBe(true);
+    });
+  });
+
   afterAll(async () => {
     await app.close();
   });
