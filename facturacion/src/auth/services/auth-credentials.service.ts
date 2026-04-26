@@ -16,8 +16,8 @@ import { JwtPayload } from '../strategies/jwt.strategy';
 import { LoginAttemptsService } from '../security/login-attempts.service';
 import { RefreshTokenService } from './refresh-token.service';
 import { MetricsService } from '../../metrics/metrics.service';
+import { BCRYPT_ROUNDS } from '../../common/constants/crypto.constants';
 
-const BCRYPT_ROUNDS = 12;
 const INVALID_CREDS = 'Credenciales inválidas';
 
 export type RequestContext = {

@@ -6,11 +6,11 @@ import type { IUsersRepository } from '../interfaces/users-repository.interface'
 import { I_USERS_REPOSITORY } from '../interfaces/users-repository.interface';
 import { mapToResponseUserDto } from '../users.mapper';
 import { httpError } from '../../common/errors/http-error';
+import { BCRYPT_ROUNDS } from '../../common/constants/crypto.constants';
 
 @Injectable()
 export class UsersAdminService {
   private readonly logger = new Logger(UsersAdminService.name);
-  private readonly BCRYPT_ROUNDS = 12;
 
   constructor(
     @Inject(I_USERS_REPOSITORY)
@@ -36,7 +36,7 @@ export class UsersAdminService {
       );
     }
 
-    const passwordHash = await bcrypt.hash(password, this.BCRYPT_ROUNDS);
+    const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
     const user = await this.usersRepository.create(
       email,
       passwordHash,

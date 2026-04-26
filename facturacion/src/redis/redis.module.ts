@@ -24,8 +24,15 @@ import { RedisShutdown } from './redis.shutdown';
           enableReadyCheck: true,
         });
 
+        let lastErrorLogTime = 0;
+        const ERROR_LOG_THROTTLE_MS = 5000;
+
         redis.on('error', (err) => {
-          logger.error('Redis error:', err.message);
+          const now = Date.now();
+          if (now - lastErrorLogTime > ERROR_LOG_THROTTLE_MS) {
+            logger.error(`Redis error: ${err.message}`);
+            lastErrorLogTime = now;
+          }
         });
 
         redis.on('connect', () => {

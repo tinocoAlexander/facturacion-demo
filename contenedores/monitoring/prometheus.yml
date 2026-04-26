@@ -1,0 +1,8 @@
+global:
+  scrape_interval: 15s # El intervalo por defecto en el que Prometheus recolecta métricas
+
+scrape_configs:
+  - job_name: 'facturacion-backend'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['host.docker.internal:3000'] # Cambiar por el host/puerto real de tu backend

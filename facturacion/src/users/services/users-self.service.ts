@@ -6,11 +6,10 @@ import type { IUsersRepository } from '../interfaces/users-repository.interface'
 import { I_USERS_REPOSITORY } from '../interfaces/users-repository.interface';
 import { mapToResponseUserDto } from '../users.mapper';
 import { httpError } from '../../common/errors/http-error';
+import { BCRYPT_ROUNDS } from '../../common/constants/crypto.constants';
 
 @Injectable()
 export class UsersSelfService {
-  private readonly BCRYPT_ROUNDS = 12;
-
   constructor(
     @Inject(I_USERS_REPOSITORY)
     private readonly usersRepository: IUsersRepository,
@@ -88,7 +87,7 @@ export class UsersSelfService {
       );
     }
 
-    const newHash = await bcrypt.hash(dto.newPassword, this.BCRYPT_ROUNDS);
+    const newHash = await bcrypt.hash(dto.newPassword, BCRYPT_ROUNDS);
     const changed = await this.usersRepository.changePassword(userId, newHash);
     if (!changed)
       throw httpError(

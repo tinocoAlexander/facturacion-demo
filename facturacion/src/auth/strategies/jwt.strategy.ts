@@ -15,6 +15,7 @@ export interface JwtPayload {
 export class JwtStrategy extends PassportStrategy(Strategy) {
   private readonly activeCache = new Map<number, { active: boolean; expiry: number }>();
   private readonly CACHE_TTL_MS = 30000;
+  private readonly CACHE_MAX_SIZE = 5000;
 
   constructor(
     config: ConfigService,
@@ -40,6 +41,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     const cached = this.activeCache.get(payload.sub);
 
     if (cached && cached.expiry > now) {
+      // Actualizamos el orden del LRU reinsertando el elemento
+      this.activeCache.delete(payload.sub);
+      this.activeCache.set(payload.sub, cached);
+
       if (!cached.active) {
         throw new UnauthorizedException('La cuenta de usuario está desactivada');
       }
@@ -50,6 +55,15 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     const user = await this.usersRepository.findById(payload.sub);
     
     const isActive = user?.is_active ?? false;
+
+    // Implementación de LRU: si el cache está lleno, eliminamos el más antiguo (el primero del Map)
+    if (!this.activeCache.has(payload.sub) && this.activeCache.size >= this.CACHE_MAX_SIZE) {
+      const oldestKey = this.activeCache.keys().next().value;
+      if (oldestKey !== undefined) {
+        this.activeCache.delete(oldestKey);
+      }
+    }
+
     this.activeCache.set(payload.sub, {
       active: isActive,
       expiry: now + this.CACHE_TTL_MS,
