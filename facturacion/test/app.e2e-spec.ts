@@ -276,6 +276,7 @@ describe('API (e2e)', () => {
     let adminToken: string;
     let userToken: string;
     let userId: number;
+    const ip = randomIp();
 
     beforeAll(async () => {
       // Create admin
@@ -283,6 +284,7 @@ describe('API (e2e)', () => {
       const password = 'MyStrongP4ssword';
       await request(app.getHttpServer())
         .post(api('/auth/register'))
+        .set('X-Forwarded-For', ip)
         .send({ email: adminEmail, password, fullName: 'Admin Empresa' })
         .expect(201);
       await pool.query(`UPDATE users SET role = 'admin' WHERE email = $1`, [
@@ -290,6 +292,7 @@ describe('API (e2e)', () => {
       ]);
       const adminLoginRes = await request(app.getHttpServer())
         .post(api('/auth/login'))
+        .set('X-Forwarded-For', ip)
         .send({ email: adminEmail, password })
         .expect(200);
       adminToken = (adminLoginRes.body as { accessToken: string }).accessToken;
@@ -298,11 +301,13 @@ describe('API (e2e)', () => {
       const userEmail = randomEmail();
       const userRes = await request(app.getHttpServer())
         .post(api('/auth/register'))
+        .set('X-Forwarded-For', ip)
         .send({ email: userEmail, password, fullName: 'User Empresa' })
         .expect(201);
       userId = (userRes.body as { id: number }).id;
       const userLoginRes = await request(app.getHttpServer())
         .post(api('/auth/login'))
+        .set('X-Forwarded-For', ip)
         .send({ email: userEmail, password })
         .expect(200);
       userToken = (userLoginRes.body as { accessToken: string }).accessToken;
@@ -379,6 +384,7 @@ describe('API (e2e)', () => {
       const userEmail = queryRes.rows[0].email;
       const loginRes = await request(app.getHttpServer())
         .post(api('/auth/login'))
+        .set('X-Forwarded-For', ip)
         .send({ email: userEmail, password: 'MyStrongP4ssword' })
         .expect(200);
       const newToken = (loginRes.body as { accessToken: string }).accessToken;
