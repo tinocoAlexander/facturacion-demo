@@ -6,7 +6,8 @@ import type { Pool } from 'pg';
 
 // Configurar variables de entorno antes de importar AppModule para evitar fallos en validación Joi
 process.env.NODE_ENV = 'test';
-process.env.CSD_ENCRYPTION_KEY = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855';
+process.env.CSD_ENCRYPTION_KEY =
+  'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855';
 
 import { AppModule } from './../src/app.module';
 import { DATABASE_POOL } from './../src/database/database.constants';
