@@ -361,31 +361,37 @@ describe('API (e2e)', () => {
 
     it('usuario con empresa obtiene datos correctos en GET /empresas/mi-empresa', async () => {
       const rfc = randomRfc();
+      const email = randomEmail();
+      const password = 'MyStrongP4ssword';
+
+      // 1. Create empresa
       const empresaRes = await request(app.getHttpServer())
         .post(api('/empresas'))
         .set('Authorization', `Bearer ${adminToken}`)
         .send(createEmpresaBody(rfc))
         .expect(201);
-
       const empresaId = (empresaRes.body as { id: string }).id;
 
-      // Assign user to empresa
+      // 2. Create user
+      const userRes = await request(app.getHttpServer())
+        .post(api('/auth/register'))
+        .set('X-Forwarded-For', ip)
+        .send({ email, password, fullName: 'New User' })
+        .expect(201);
+      const newUserId = (userRes.body as { id: number }).id;
+
+      // 3. Assign user to empresa
       await request(app.getHttpServer())
         .post(api(`/empresas/${empresaId}/usuarios`))
         .set('Authorization', `Bearer ${adminToken}`)
-        .send({ userId })
+        .send({ userId: newUserId })
         .expect(201);
 
-      // Re-login to get new token with empresa_id
-      const queryRes = await pool.query<{ email: string }>(
-        'SELECT email FROM users WHERE id = $1',
-        [userId],
-      );
-      const userEmail = queryRes.rows[0].email;
+      // 4. Login
       const loginRes = await request(app.getHttpServer())
         .post(api('/auth/login'))
         .set('X-Forwarded-For', ip)
-        .send({ email: userEmail, password: 'MyStrongP4ssword' })
+        .send({ email, password })
         .expect(200);
       const newToken = (loginRes.body as { accessToken: string }).accessToken;
 
