@@ -9,9 +9,7 @@ import { REDIS_CLIENT } from '../redis/redis.constants';
 
 @Injectable()
 export class RedisHealthIndicator extends HealthIndicator {
-  constructor(
-    @Inject(REDIS_CLIENT) private readonly redis: Redis | null,
-  ) {
+  constructor(@Inject(REDIS_CLIENT) private readonly redis: Redis | null) {
     super();
   }
 

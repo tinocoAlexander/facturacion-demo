@@ -1,4 +1,4 @@
-import { Injectable, Logger, HttpStatus, Inject } from '@nestjs/common';
+import { Injectable, HttpStatus, Inject } from '@nestjs/common';
 import { AuditService } from '../../audit/audit.service';
 import { UpdateEmpresaDto, ResponseEmpresaDto } from '../dtos';
 import { I_EMPRESAS_REPOSITORY } from '../interfaces/empresas-repository.interface';
@@ -8,7 +8,6 @@ import { httpError } from '../../common/errors/http-error';
 
 @Injectable()
 export class EmpresasSelfService {
-
   constructor(
     @Inject(I_EMPRESAS_REPOSITORY)
     private readonly repo: IEmpresasRepository,

@@ -32,7 +32,11 @@ export class EmpresasService {
     return this.admin.asignarUsuario(adminId, empresaId, userId);
   }
 
-  async actualizar(empresaId: string, dto: UpdateEmpresaDto, actorUserId: number) {
+  async actualizar(
+    empresaId: string,
+    dto: UpdateEmpresaDto,
+    actorUserId: number,
+  ) {
     return this.self.actualizar(empresaId, dto, actorUserId);
   }
 

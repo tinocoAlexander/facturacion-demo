@@ -6,7 +6,6 @@ import { I_EMPRESAS_REPOSITORY } from './interfaces/empresas-repository.interfac
 import { EmpresasAdminService } from './services/empresas-admin.service';
 import { EmpresasSelfService } from './services/empresas-self.service';
 
-
 @Module({
   imports: [],
   controllers: [EmpresasController],

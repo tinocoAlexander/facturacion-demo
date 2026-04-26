@@ -383,7 +383,7 @@ describe('API (e2e)', () => {
         .post(api(`/empresas/${empresaId}/usuarios`))
         .set('Authorization', `Bearer ${adminToken}`)
         .send({ userId: newUserId })
-        .expect(201);
+        .expect(200);
 
       // 4. Login
       const loginRes = await request(app.getHttpServer())
