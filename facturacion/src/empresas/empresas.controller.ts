@@ -25,7 +25,7 @@ import { RolesGuard, Roles } from '../auth/guards/roles.guard';
 import { TenantGuard } from '../auth/guards/tenant.guard';
 import type { RequestWithTenant } from '../auth/guards/tenant.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { User } from '../users/users.types';
+import type { User } from '../users/users.types';
 import { EmpresasService } from './empresas.service';
 import {
   CreateEmpresaDto,
