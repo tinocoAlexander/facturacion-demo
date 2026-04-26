@@ -16,6 +16,12 @@ type RequestWithUser = Request & {
   user?: { id?: number; role?: string };
 };
 
+interface CommonError {
+  message?: string;
+  code?: string;
+  stack?: string;
+}
+
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
   constructor(
@@ -37,7 +43,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const timestamp = new Date().toISOString();
 
     let statusCode = HttpStatus.INTERNAL_SERVER_ERROR;
-    let payload: Record<string, any> = {};
+    let payload: Record<string, unknown> = {};
 
     if (exception instanceof HttpException) {
       statusCode = exception.getStatus();
@@ -58,11 +64,11 @@ export class AllExceptionsFilter implements ExceptionFilter {
       };
     } else {
       // Error no controlado (DB, etc.)
-      const error = exception as any;
+      const error = exception as CommonError;
       
       this.logger.error(
         {
-          err: isProduction ? undefined : error,
+          err: isProduction ? undefined : exception,
           message: error.message,
           requestId,
           userId,
@@ -91,7 +97,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
     );
   }
 
-  private sanitizeErrorMessage(error: any, isProduction: boolean): string {
+  private sanitizeErrorMessage(error: CommonError, isProduction: boolean): string {
     if (!isProduction) return error.message || 'Internal server error';
 
     // En producción, si detectamos que es un error de DB (e.g., de 'pg'), 

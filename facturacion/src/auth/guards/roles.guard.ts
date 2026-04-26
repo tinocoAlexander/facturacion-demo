@@ -44,8 +44,9 @@ export class RolesGuard implements CanActivate {
       const userId = user?.id;
       const path = request.url;
 
+      const ipStr = String(ip);
       this.logger.warn(
-        `Acceso denegado: IP=${ip}, UserID=${userId ?? 'guest'}, Path=${path}, Requiere=${requiredRoles}`,
+        `Acceso denegado: IP=${ipStr}, UserID=${userId ?? 'guest'}, Path=${path}, Requiere=${requiredRoles.join(', ')}`,
       );
 
       // Registro persistente del fallo de autorización

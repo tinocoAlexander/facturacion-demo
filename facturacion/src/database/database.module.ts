@@ -15,6 +15,7 @@ import { MetricsService } from '../metrics/metrics.service';
       useFactory: (configService: ConfigService, metrics: MetricsService) => {
         const statementTimeoutMs =
           configService.get<number>('DB_STATEMENT_TIMEOUT_MS') ?? 15000;
+        const maxConnections = configService.get<number>('DB_POOL_MAX') ?? 20;
         const pool = new Pool({
           user: configService.get<string>('DB_USER'),
           host: configService.get<string>('DB_HOST', 'localhost'),
@@ -22,7 +23,7 @@ import { MetricsService } from '../metrics/metrics.service';
           password: configService.get<string>('DB_PASSWORD'),
           port: configService.get<number>('DB_PORT', 5432),
           options: `-c statement_timeout=${statementTimeoutMs}`,
-          max: configService.get<number>('DB_POOL_MAX') ?? 20,
+          max: maxConnections,
           idleTimeoutMillis:
             configService.get<number>('DB_POOL_IDLE_TIMEOUT_MS') ?? 30000,
           connectionTimeoutMillis:
@@ -36,7 +37,7 @@ import { MetricsService } from '../metrics/metrics.service';
         // Actualizar métricas del pool cada 30 segundos
         setInterval(() => {
           metrics.setDbPoolMetrics({
-            total: (pool as any).options?.max ?? 20,
+            total: maxConnections,
             idle: pool.idleCount,
             waiting: pool.waitingCount,
           });

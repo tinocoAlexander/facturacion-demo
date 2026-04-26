@@ -1,4 +1,5 @@
 import type { INestApplication } from '@nestjs/common';
+import type { Request, Response, NextFunction } from 'express';
 import helmet from 'helmet';
 
 export function configureSecurity(app: INestApplication) {
@@ -30,7 +31,7 @@ export function configureSecurity(app: INestApplication) {
   );
 
   // Middleware para asegurar headers específicos en todas las respuestas
-  app.use((_req, res, next) => {
+  app.use((_req: Request, res: Response, next: NextFunction) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
     res.setHeader('X-Frame-Options', 'DENY');

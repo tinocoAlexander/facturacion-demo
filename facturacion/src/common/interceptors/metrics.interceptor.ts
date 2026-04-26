@@ -9,13 +9,19 @@ import { tap } from 'rxjs/operators';
 import { MetricsService } from '../../metrics/metrics.service';
 import type { Request, Response } from 'express';
 
+type ExtendedRequest = Request & {
+  route?: {
+    path?: string;
+  };
+};
+
 @Injectable()
 export class MetricsInterceptor implements NestInterceptor {
   constructor(private readonly metrics: MetricsService) {}
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
     const http = context.switchToHttp();
-    const request = http.getRequest<Request>();
+    const request = http.getRequest<ExtendedRequest>();
     const response = http.getResponse<Response>();
 
     const { method, url } = request;
@@ -34,7 +40,7 @@ export class MetricsInterceptor implements NestInterceptor {
         
         // Obtenemos el path patrón si está disponible (e.g., /users/:id)
         // En NestJS con Express, está en request.route.path
-        const route = (request as any).route?.path || url;
+        const route = request.route?.path || url;
 
         this.metrics.recordHttpRequest(method, route, statusCode, duration);
       }),
