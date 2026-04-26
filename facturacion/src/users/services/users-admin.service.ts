@@ -34,31 +34,22 @@ export class UsersAdminService {
       );
     }
 
-    try {
-      const passwordHash = await bcrypt.hash(password, this.BCRYPT_ROUNDS);
-      const user = await this.usersRepository.create(
-        email,
-        passwordHash,
-        fullName,
-      );
+    const passwordHash = await bcrypt.hash(password, this.BCRYPT_ROUNDS);
+    const user = await this.usersRepository.create(
+      email,
+      passwordHash,
+      fullName,
+    );
 
-      await this.audit.log('ADMIN_CREATE_USER', {
-        actorUserId: ctx?.actorUserId ?? null,
-        targetUserId: user.id,
-        ip: ctx?.ip,
-        userAgent: ctx?.userAgent,
-        metadata: { email: user.email },
-      });
+    await this.audit.log('ADMIN_CREATE_USER', {
+      actorUserId: ctx?.actorUserId ?? null,
+      targetUserId: user.id,
+      ip: ctx?.ip,
+      userAgent: ctx?.userAgent,
+      metadata: { email: user.email },
+    });
 
-      return mapToResponseUserDto(user);
-    } catch (error) {
-      this.logger.error(`Error al crear usuario: ${(error as Error).message}`);
-      throw httpError(
-        HttpStatus.BAD_REQUEST,
-        'USERS_CREATE_FAILED',
-        'Error al crear el usuario',
-      );
-    }
+    return mapToResponseUserDto(user);
   }
 
   async setActiveStatus(

@@ -58,15 +58,7 @@ export class UsersSelfService {
       );
     }
 
-    const publicUser = await this.usersRepository.findById(userId);
-    if (!publicUser)
-      throw httpError(
-        HttpStatus.NOT_FOUND,
-        'USERS_NOT_FOUND',
-        'Usuario no encontrado',
-      );
-
-    const user = await this.usersRepository.findByEmail(publicUser.email);
+    const user = await this.usersRepository.findByIdWithHash(userId);
     if (!user)
       throw httpError(
         HttpStatus.NOT_FOUND,

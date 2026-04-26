@@ -6,6 +6,7 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { HttpAdapterHost } from '@nestjs/core';
+import { ConfigService } from '@nestjs/config';
 import { PinoLogger } from 'nestjs-pino';
 import type { Request } from 'express';
 import { defaultErrorCodeForStatus } from '../errors/status-codes';
@@ -20,6 +21,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
   constructor(
     private readonly httpAdapterHost: HttpAdapterHost,
     private readonly logger: PinoLogger,
+    private readonly configService: ConfigService,
   ) {
     this.logger.setContext(AllExceptionsFilter.name);
   }
@@ -31,10 +33,14 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const requestId = request.id;
     const userId = request.user?.id;
 
+    const isProduction = this.configService.get('NODE_ENV') === 'production';
     const timestamp = new Date().toISOString();
 
+    let statusCode = HttpStatus.INTERNAL_SERVER_ERROR;
+    let payload: Record<string, any> = {};
+
     if (exception instanceof HttpException) {
-      const statusCode = exception.getStatus();
+      statusCode = exception.getStatus();
       const response = exception.getResponse();
 
       const basePayload: Record<string, unknown> =
@@ -42,7 +48,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
           ? { statusCode, message: response }
           : (response as Record<string, unknown>);
 
-      const payload = {
+      payload = {
         statusCode,
         code:
           typeof basePayload.code === 'string'
@@ -50,45 +56,53 @@ export class AllExceptionsFilter implements ExceptionFilter {
             : defaultErrorCodeForStatus(statusCode),
         ...basePayload,
       };
-
-      httpAdapter.reply(
-        ctx.getResponse(),
+    } else {
+      // Error no controlado (DB, etc.)
+      const error = exception as any;
+      
+      this.logger.error(
         {
-          ...payload,
-          timestamp,
-          path: request.url,
+          err: isProduction ? undefined : error,
+          message: error.message,
           requestId,
+          userId,
+          path: request?.url,
         },
-        statusCode,
+        'Unhandled exception',
       );
-      return;
+
+      payload = {
+        statusCode,
+        code: 'INTERNAL_SERVER_ERROR',
+        message: this.sanitizeErrorMessage(error, isProduction),
+      };
     }
 
-    const statusCode = HttpStatus.INTERNAL_SERVER_ERROR;
-    const message = 'Internal server error';
-
-    const err = exception;
-    this.logger.error(
-      {
-        err,
-        requestId,
-        userId,
-        path: request?.url,
-        method: request?.method,
-      },
-      'Unhandled exception',
-    );
-
+    // Aseguramos que requestId esté siempre en la respuesta
     httpAdapter.reply(
       ctx.getResponse(),
       {
-        statusCode,
-        message,
+        ...payload,
         timestamp,
         path: request.url,
         requestId,
       },
       statusCode,
     );
+  }
+
+  private sanitizeErrorMessage(error: any, isProduction: boolean): string {
+    if (!isProduction) return error.message || 'Internal server error';
+
+    // En producción, si detectamos que es un error de DB (e.g., de 'pg'), 
+    // devolvemos un mensaje genérico para no exponer esquema.
+    const dbErrorKeywords = ['query', 'select', 'insert', 'update', 'delete', 'constraint', 'relation', 'column'];
+    const msg = (error.message || '').toLowerCase();
+    
+    if (dbErrorKeywords.some(keyword => msg.includes(keyword)) || error.code) {
+      return 'Se produjo un error al procesar la solicitud en el servidor de datos';
+    }
+
+    return 'Internal server error';
   }
 }

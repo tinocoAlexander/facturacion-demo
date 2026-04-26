@@ -20,11 +20,11 @@ export class CreateUserDto {
     example: 'MyStrongP4ssword',
     description: 'Contraseña (mín. 8 chars, mayúsculas/minúsculas/número)',
     minLength: 8,
-    maxLength: 128,
+    maxLength: 72,
   })
   @IsNotEmpty({ message: 'Contraseña es requerida' })
   @MinLength(8, { message: 'Contraseña debe tener mínimo 8 caracteres' })
-  @MaxLength(128, { message: 'Contraseña no puede exceder 128 caracteres' })
+  @MaxLength(72, { message: 'Contraseña no puede exceder 72 caracteres' })
   @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, {
     message: 'Contraseña debe incluir mayúscula, minúscula y número',
   })

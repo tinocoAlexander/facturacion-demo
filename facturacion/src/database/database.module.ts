@@ -4,14 +4,15 @@ import { Pool } from 'pg';
 import { MigrationRunner } from './migration.runner';
 import { DATABASE_POOL } from './database.constants';
 import { DatabaseShutdown } from './database.shutdown';
+import { MetricsService } from '../metrics/metrics.service';
 
 @Global()
 @Module({
   providers: [
     {
       provide: DATABASE_POOL,
-      inject: [ConfigService],
-      useFactory: (configService: ConfigService) => {
+      inject: [ConfigService, MetricsService],
+      useFactory: (configService: ConfigService, metrics: MetricsService) => {
         const statementTimeoutMs =
           configService.get<number>('DB_STATEMENT_TIMEOUT_MS') ?? 15000;
         const pool = new Pool({
@@ -31,6 +32,15 @@ import { DatabaseShutdown } from './database.shutdown';
         pool.on('error', (err) => {
           console.error('Pool error:', err.message);
         });
+
+        // Actualizar métricas del pool cada 30 segundos
+        setInterval(() => {
+          metrics.setDbPoolMetrics({
+            total: (pool as any).options?.max ?? 20,
+            idle: pool.idleCount,
+            waiting: pool.waitingCount,
+          });
+        }, 30000).unref();
 
         return pool;
       },

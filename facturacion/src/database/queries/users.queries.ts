@@ -15,6 +15,14 @@ export const USER_QUERIES = {
     LIMIT 1
   `,
 
+  FIND_BY_ID_WITH_HASH: `
+    SELECT id, email, password_hash, full_name, role, is_active,
+           created_at, updated_at, last_login_at
+    FROM users
+    WHERE id = $1
+    LIMIT 1
+  `,
+
   FIND_ACTIVE_BY_EMAIL: `
     SELECT id, email, password_hash, full_name, role, is_active,
            created_at, updated_at, last_login_at

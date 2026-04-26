@@ -52,6 +52,19 @@ export class UsersRepository {
     }
   }
 
+  async findByIdWithHash(id: number): Promise<User | null> {
+    try {
+      const { rows } = await this.pool.query<User>(
+        USER_QUERIES.FIND_BY_ID_WITH_HASH,
+        [id],
+      );
+      return rows[0] ?? null;
+    } catch (err) {
+      this.logger.error('findByIdWithHash failed', (err as Error).message);
+      throw new InternalServerErrorException();
+    }
+  }
+
   async emailExists(email: string): Promise<boolean> {
     const { rows } = await this.pool.query(USER_QUERIES.EMAIL_EXISTS, [email]);
     return rows.length > 0;

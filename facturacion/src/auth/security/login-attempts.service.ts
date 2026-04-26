@@ -1,7 +1,7 @@
-import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Redis from 'ioredis';
-import { OnApplicationShutdown } from '@nestjs/common';
+import { InjectRedis } from '../../redis/redis.constants';
 
 type AttemptRecord = {
   count: number;
@@ -10,24 +10,14 @@ type AttemptRecord = {
 };
 
 @Injectable()
-export class LoginAttemptsService implements OnApplicationShutdown {
+export class LoginAttemptsService {
   private readonly byEmail = new Map<string, AttemptRecord>();
   private readonly byIp = new Map<string, AttemptRecord>();
 
-  private readonly redis?: Redis;
-
-  constructor(private readonly config: ConfigService) {
-    const url = this.config.get<string>('REDIS_URL');
-    if (url) {
-      this.redis = new Redis(url, { maxRetriesPerRequest: 2 });
-    }
-  }
-
-  async onApplicationShutdown() {
-    if (this.redis) {
-      await this.redis.quit();
-    }
-  }
+  constructor(
+    private readonly config: ConfigService,
+    @Optional() @InjectRedis() private readonly redis: Redis | null,
+  ) {}
 
   async assertNotBlocked(email: string, ip?: string) {
     if (this.redis) {

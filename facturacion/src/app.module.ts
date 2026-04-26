@@ -1,7 +1,7 @@
 import { BadRequestException, Module, ValidationPipe } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
-import { APP_FILTER, APP_GUARD, APP_PIPE } from '@nestjs/core';
+import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR, APP_PIPE } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
 import * as path from 'path';
 import { LoggerModule } from 'nestjs-pino';
@@ -14,6 +14,10 @@ import { AuditModule } from './audit/audit.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { createPinoHttpOptions } from './common/logging/pino-http.factory';
 import { MetricsModule } from './metrics/metrics.module';
+import { RedisModule } from './redis/redis.module';
+import { TasksModule } from './tasks/tasks.module';
+import { MetricsInterceptor } from './common/interceptors/metrics.interceptor';
+import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
 import type { ValidationError } from 'class-validator';
 
 @Module({
@@ -47,6 +51,8 @@ import type { ValidationError } from 'class-validator';
     DatabaseModule,
     AuditModule,
     MetricsModule,
+    RedisModule,
+    TasksModule,
     AuthModule,
     UsersModule,
   ],
@@ -85,6 +91,14 @@ import type { ValidationError } from 'class-validator';
       provide: APP_FILTER,
       useClass: AllExceptionsFilter,
     },
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: MetricsInterceptor,
+    },
   ],
 })
-export class AppModule {}
+export class AppModule {
+  configure(consumer: import('@nestjs/common').MiddlewareConsumer) {
+    consumer.apply(RequestIdMiddleware).forRoutes('*');
+  }
+}

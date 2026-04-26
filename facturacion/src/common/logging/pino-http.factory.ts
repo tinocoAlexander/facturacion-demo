@@ -22,19 +22,9 @@ export function createPinoHttpOptions(config: ConfigService) {
 
   return {
     level,
-    genReqId: (req: RequestWithUser, res: Response) => {
-      const incoming = req.headers['x-request-id'];
-      if (typeof incoming === 'string' && incoming.trim().length > 0) {
-        res.setHeader('x-request-id', incoming);
-        return incoming;
-      }
-
-      const id =
-        typeof req.id === 'string' && req.id.trim().length > 0
-          ? req.id
-          : randomUUID();
-      res.setHeader('x-request-id', id);
-      return id;
+    genReqId: (req: RequestWithUser) => {
+      // El RequestIdMiddleware ya validó y seteó req.id (UUID seguro)
+      return req.id || randomUUID();
     },
     customProps: (req: RequestWithUser) => ({
       requestId: req.id,

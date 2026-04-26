@@ -28,7 +28,12 @@ export const envValidationSchema = Joi.object({
   DB_STATEMENT_TIMEOUT_MS: Joi.number().integer().min(1000).default(15000),
 
   // JWT
-  JWT_SECRET: Joi.string().required(),
+  JWT_SECRET: Joi.string()
+    .min(32)
+    .required()
+    .messages({
+      'string.min': 'JWT_SECRET debe tener al menos 32 caracteres para ser seguro',
+    }),
   JWT_EXPIRES_IN: Joi.string().default('15m'),
 
   // Refresh tokens
@@ -63,6 +68,14 @@ export const envValidationSchema = Joi.object({
 
   // Redis
   REDIS_URL: Joi.string(),
+  REDIS_PASSWORD: Joi.string(),
+
+  // Security & TLS
+  // Advertencia: Poner esto en '0' o 'false' deshabilita la verificación de certificados TLS,
+  // lo cual es un riesgo de seguridad crítico (Man-in-the-Middle).
+  NODE_TLS_REJECT_UNAUTHORIZED: Joi.string()
+    .valid('0', '1', 'true', 'false')
+    .default('1'),
 
   // Migrations
   // - En dev/test: corre por defecto
@@ -85,4 +98,7 @@ export const envValidationSchema = Joi.object({
   METRICS_ENABLED: Joi.boolean(),
   METRICS_BASIC_USER: Joi.string(),
   METRICS_BASIC_PASSWORD: Joi.string(),
+
+  // Cleanup
+  CLEANUP_CRON: Joi.string().default('0 3 * * *'),
 });

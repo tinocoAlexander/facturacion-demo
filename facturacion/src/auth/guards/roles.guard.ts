@@ -3,35 +3,63 @@ import {
   ExecutionContext,
   ForbiddenException,
   Injectable,
+  Logger,
   SetMetadata,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import type { Request } from 'express';
+import { AuditService } from '../../audit/audit.service';
 
-type RequestWithUser = Request & { user?: { role?: string } };
+type RequestWithUser = Request & { 
+  user?: { id?: number; role?: string };
+  id?: string;
+};
 
 export const ROLES_KEY = 'roles';
-
-// Decorador que usarás en los controllers: @Roles('admin')
 export const Roles = (...roles: string[]) => SetMetadata(ROLES_KEY, roles);
 
 @Injectable()
 export class RolesGuard implements CanActivate {
-  constructor(private reflector: Reflector) {}
+  private readonly logger = new Logger(RolesGuard.name);
 
-  canActivate(context: ExecutionContext): boolean {
+  constructor(
+    private reflector: Reflector,
+    private readonly audit: AuditService,
+  ) {}
+
+  async canActivate(context: ExecutionContext): Promise<boolean> {
     const requiredRoles = this.reflector.get<string[]>(
       ROLES_KEY,
       context.getHandler(),
     );
 
-    // Si el endpoint no tiene @Roles(), cualquiera puede acceder
     if (!requiredRoles || requiredRoles.length === 0) return true;
 
-    const { user } = context.switchToHttp().getRequest<RequestWithUser>();
+    const request = context.switchToHttp().getRequest<RequestWithUser>();
+    const { user } = request;
 
     const role = user?.role;
     if (!role || !requiredRoles.includes(role)) {
+      const ip = request.ip || request.headers['x-forwarded-for'] || 'unknown';
+      const userId = user?.id;
+      const path = request.url;
+
+      this.logger.warn(
+        `Acceso denegado: IP=${ip}, UserID=${userId ?? 'guest'}, Path=${path}, Requiere=${requiredRoles}`,
+      );
+
+      // Registro persistente del fallo de autorización
+      await this.audit.log('AUTHZ_FORBIDDEN', {
+        actorUserId: userId,
+        ip: String(ip),
+        metadata: {
+          path,
+          requiredRoles,
+          userRole: role,
+          requestId: request.id,
+        },
+      });
+
       throw new ForbiddenException('No tienes permiso para esta acción');
     }
 

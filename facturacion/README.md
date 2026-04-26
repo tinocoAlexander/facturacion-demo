@@ -23,115 +23,96 @@
 
 ## Description
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+Sistema de facturación progresivo desarrollado con [Nest](https://github.com/nestjs/nest).
 
-## Project setup
+## Development
+
+Para correr el proyecto en desarrollo, primero asegúrate de tener levantada la infraestructura necesaria:
+
+1. **Infraestructura**:
+   ```bash
+   # Ir al directorio de contenedores y levantar DB y Redis
+   $ cd ../contenedores
+   $ docker-compose up -d
+   ```
+
+2. **Aplicación**:
+   ```bash
+   # Instalar dependencias
+   $ npm install
+   
+   # Correr en modo desarrollo (watch mode)
+   $ npm run start:dev
+   ```
+
+## Production Build
+
+### Docker (Recomendado)
+El proyecto utiliza un `Dockerfile` multi-stage para generar una imagen ligera y segura:
 
 ```bash
-$ npm install
+# Generar la imagen de producción
+$ docker build -t facturacion-api .
+
+# Correr el contenedor (asegúrate de pasar las variables de entorno)
+$ docker run -p 3000:3000 --env-file .env facturacion-api
 ```
 
-## Compile and run the project
-
+### Build Manual
 ```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
+$ npm run build
 $ npm run start:prod
 ```
 
-## Swagger (OpenAPI)
+## Environment Variables
 
-- URL (con prefijo global): `http://localhost:3000/api/v1/docs`
-- En `development`: habilitado por defecto.
-- En `production`: se habilita solo si `SWAGGER_ENABLED=true`.
+El proyecto utiliza un esquema de validación estricto con Joi. Las variables principales son:
 
-Variables de entorno:
+| Variable | Descripción | Default |
+|----------|-------------|---------|
+| `PORT` | Puerto de la aplicación | 3000 |
+| `DB_HOST` | Host de PostgreSQL | localhost |
+| `DB_USER` | Usuario de PostgreSQL | (requerido) |
+| `DB_PASSWORD` | Contraseña de PostgreSQL | (requerido) |
+| `JWT_SECRET` | Secreto JWT (mín 32 chars) | (requerido) |
+| `REDIS_URL` | URL de Redis | (opcional) |
+| `REDIS_PASSWORD` | Contraseña de Redis | (opcional) |
+| `CLEANUP_CRON` | Cron para limpieza de tokens | 0 3 * * * |
 
-- `SWAGGER_ENABLED` (`true`/`false`)
-- `SWAGGER_BASIC_USER` (requerido en prod si se habilita)
-- `SWAGGER_BASIC_PASSWORD` (requerido en prod si se habilita)
+Para más detalles, consulta `.env.example`.
 
-## Metrics (Prometheus)
-
-- URL (sin prefijo global): `http://localhost:3000/metrics`
-- En `development`: habilitado por defecto.
-- En `production`: se habilita solo si `METRICS_ENABLED=true`.
-- En `production`: si está habilitado, exige BasicAuth (configurado en `main.ts`). Si faltan credenciales, el endpoint queda apagado (fail-closed).
-
-Variables de entorno:
-
-- `METRICS_ENABLED` (`true`/`false`)
-- `METRICS_BASIC_USER` (requerido en prod si se habilita)
-- `METRICS_BASIC_PASSWORD` (requerido en prod si se habilita)
-
-Ejemplo de scrape (Prometheus):
-
-```yaml
-scrape_configs:
-  - job_name: 'facturacion'
-    metrics_path: /metrics
-    static_configs:
-      - targets: ['localhost:3000']
-    # En production
-    basic_auth:
-      username: your_user
-      password: your_password
-```
-
-## Run tests
+## Testing
 
 ```bash
-# unit tests
+# Unit tests
 $ npm run test
 
-# e2e tests
+# E2E tests (requiere infraestructura de test)
 $ npm run test:e2e
 
-# test coverage
+# Cobertura
 $ npm run test:cov
 ```
 
-## Deployment
+## CI/CD
+El proyecto incluye un workflow de GitHub Actions que corre automáticamente en cada push a `main`:
+- **Lint**: Verificación de estilo.
+- **Test**: Ejecución de tests E2E con servicios reales (Postgres/Redis) en Docker.
+- **Build**: Verificación de que la imagen de Docker se construye correctamente.
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+---
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+## Swagger (OpenAPI)
 
-```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
-```
+- URL: `http://localhost:3000/api/v1/docs`
+- En `production`: se habilita solo si `SWAGGER_ENABLED=true`.
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+## Metrics (Prometheus)
 
-## Resources
+- URL: `http://localhost:3000/metrics`
+- En `production`: se habilita solo si `METRICS_ENABLED=true` y requiere BasicAuth.
 
-Check out a few resources that may come in handy when working with NestJS:
-
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+---
 
 ## License
-
 Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
