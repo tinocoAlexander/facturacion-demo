@@ -3,7 +3,7 @@ export interface User {
   email: string;
   password_hash: string;
   full_name: string;
-  role: 'user' | 'admin';
+  role: 'user' | 'admin' | 'cajero' | 'contador';
   is_active: boolean;
   empresa_id: string | null;
   last_login_at: Date | null;

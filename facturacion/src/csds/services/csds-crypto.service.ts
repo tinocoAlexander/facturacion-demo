@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, InternalServerErrorException } from '@nestjs/common';
 import * as crypto from 'crypto';
 import { ConfigService } from '@nestjs/config';
 
@@ -22,7 +22,7 @@ export class CsdsCryptoService {
   }
 
   encrypt(buffer: Buffer): EncryptedData {
-    const iv = crypto.randomBytes(16);
+    const iv = crypto.randomBytes(12); // 96 bits — recomendado por NIST para GCM
     const cipher = crypto.createCipheriv(this.algorithm, this.key, iv);
 
     const encrypted = Buffer.concat([cipher.update(buffer), cipher.final()]);
@@ -39,21 +39,28 @@ export class CsdsCryptoService {
   }
 
   decrypt(encryptedBufferWithAuthTag: Buffer, iv: Buffer): Buffer {
-    // Extract auth tag (last 16 bytes)
+    return this.decryptWithIv(encryptedBufferWithAuthTag, iv);
+  }
+
+  private decryptWithIv(encryptedWithTag: Buffer, iv: Buffer): Buffer {
+    // Soporte para IVs legacy de 16 bytes y nuevos de 12 bytes
+    // El tamaño del IV está implícito en el campo iv almacenado en la DB
     const authTagLength = 16;
-    const encryptedLength = encryptedBufferWithAuthTag.length - authTagLength;
-
-    const encrypted = encryptedBufferWithAuthTag.subarray(0, encryptedLength);
-    const authTag = encryptedBufferWithAuthTag.subarray(encryptedLength);
-
+    const encLen = encryptedWithTag.length - authTagLength;
+    const encrypted = encryptedWithTag.subarray(0, encLen);
+    const authTag = encryptedWithTag.subarray(encLen);
+    
     const decipher = crypto.createDecipheriv(this.algorithm, this.key, iv);
     decipher.setAuthTag(authTag);
-
-    const decrypted = Buffer.concat([
-      decipher.update(encrypted),
-      decipher.final(),
-    ]);
-    return decrypted;
+    
+    try {
+      return Buffer.concat([decipher.update(encrypted), decipher.final()]);
+    } catch (err) {
+      // NUNCA loguear el error real — puede contener info del plaintext
+      throw new InternalServerErrorException(
+        'Error al descifrar el certificado. Verifica que CSD_ENCRYPTION_KEY sea correcta.'
+      );
+    }
   }
 
   zeroOutBuffer(buffer: Buffer): void {

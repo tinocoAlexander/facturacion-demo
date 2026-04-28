@@ -9,6 +9,7 @@ on:
 jobs:
   lint:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       
@@ -27,37 +28,13 @@ jobs:
         working-directory: facturacion
         run: npm run lint
 
-  test:
+  type-check:
     needs: lint
     runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_USER: test_user
-          POSTGRES_PASSWORD: test_password
-          POSTGRES_DB: facturacion_test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-      redis:
-        image: redis:7-alpine
-        env:
-          REDIS_PASSWORD: test_password
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd "redis-cli -a test_password ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
-
+      
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -69,22 +46,105 @@ jobs:
         working-directory: facturacion
         run: npm ci
 
+      - name: Run TypeScript type check
+        working-directory: facturacion
+        run: npm run type-check
+
+  security-audit:
+    needs: lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Run npm audit
+        working-directory: facturacion
+        run: npm audit --audit-level=high
+
+  test:
+    needs: type-check
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_password_ci_only
+          POSTGRES_DB: facturacion_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: facturacion/package-lock.json
+
+      - name: Install dependencies
+        working-directory: facturacion
+        run: npm ci
+
+      - name: Generate CSD_ENCRYPTION_KEY
+        id: gen-keys
+        run: echo "CSD_KEY=$(node -e "console.log(require('crypto').randomBytes(32).toString('hex'))")" >> $GITHUB_ENV
+
+      - name: Run Database Migrations
+        working-directory: facturacion
+        env:
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_USER: test_user
+          DB_PASSWORD: test_password_ci_only
+          DB_NAME: facturacion_test
+        run: npm run db:migrate
+
       - name: Run e2e tests
         working-directory: facturacion
         env:
           DB_HOST: localhost
           DB_PORT: 5432
           DB_USER: test_user
-          DB_PASSWORD: test_password
+          DB_PASSWORD: test_password_ci_only
           DB_NAME: facturacion_test
-          REDIS_URL: redis://:test_password@localhost:6379
-          JWT_SECRET: super_secret_key_for_testing_purposes_only
+          REDIS_URL: redis://localhost:6379
+          JWT_SECRET: super_secret_key_for_testing_purposes_only_32_chars
+          CSD_ENCRYPTION_KEY: ${{ env.CSD_KEY }}
           NODE_ENV: test
+          LOGIN_MAX_ATTEMPTS_EMAIL: '5'
+          LOGIN_MAX_ATTEMPTS_IP: '10'
         run: npm run test:e2e
 
+      - name: Upload Test Results
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-test-results
+          path: facturacion/test-results/
+          retention-days: 7
+
   build:
-    needs: [lint, test]
+    needs: test
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
 
@@ -104,4 +164,12 @@ jobs:
       - name: Verify image startup
         run: |
           docker run --rm facturacion-api:latest node -v
-          # Nota: No arrancamos la app completa porque requiere DB/Redis para pasar el healthcheck
+
+  notify-on-failure:
+    needs: [lint, type-check, security-audit, test, build]
+    if: failure()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Log failed jobs
+        run: echo "One or more CI jobs failed. Please check the logs or notify the team."

@@ -101,6 +101,14 @@ export class UsersAdminService {
       );
     }
 
+    if (role === 'admin') {
+      throw httpError(
+        HttpStatus.FORBIDDEN,
+        'USERS_CANNOT_PROMOTE_TO_ADMIN',
+        'No se puede promover a admin via API. Contacta al administrador del sistema.',
+      );
+    }
+
     const updated = await this.usersRepository.setRole(targetUserId, role);
     if (!updated)
       throw httpError(

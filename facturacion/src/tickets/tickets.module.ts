@@ -8,9 +8,10 @@ import { TicketsRepository } from './tickets.repository';
 import { I_TICKETS_REPOSITORY } from './interfaces/tickets-repository.interface';
 
 import { EmpresasModule } from '../empresas/empresas.module';
+import { CatalogosModule } from '../catalogos/catalogos.module';
 
 @Module({
-  imports: [EmpresasModule],
+  imports: [EmpresasModule, CatalogosModule],
   controllers: [TicketsController],
   providers: [
     TicketsService,

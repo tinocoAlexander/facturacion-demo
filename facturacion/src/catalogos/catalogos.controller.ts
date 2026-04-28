@@ -5,10 +5,9 @@ import { RolesGuard, Roles } from '../auth/guards/roles.guard';
 import { CatalogosService } from './catalogos.service';
 import { CatalogosSyncService } from './services/catalogos-sync.service';
 import { QueryCatalogoSearchDto, QueryCatalogoRegimenDto } from './dtos';
+import { Throttle } from '@nestjs/throttler';
 
 @ApiTags('catalogos')
-@ApiBearerAuth('bearer')
-@UseGuards(JwtAuthGuard)
 @Controller('catalogos')
 export class CatalogosController {
   constructor(
@@ -17,6 +16,7 @@ export class CatalogosController {
   ) {}
 
   @Get('productos')
+  @Throttle({ default: { ttl: 60_000, limit: 60 } })
   @ApiOperation({
     summary: 'Búsqueda de productos y servicios (c_ClaveProdServ)',
   })
@@ -28,6 +28,7 @@ export class CatalogosController {
   }
 
   @Get('unidades')
+  @Throttle({ default: { ttl: 60_000, limit: 60 } })
   @ApiOperation({ summary: 'Búsqueda de unidades de medida (c_ClaveUnidad)' })
   async searchUnidades(@Query() query: QueryCatalogoSearchDto) {
     if (!query.q) {
@@ -37,30 +38,35 @@ export class CatalogosController {
   }
 
   @Get('uso-cfdi')
+  @Throttle({ default: { ttl: 60_000, limit: 60 } })
   @ApiOperation({ summary: 'Listar usos de CFDI' })
   async getUsoCfdi() {
     return this.catalogosService.getUsoCfdi();
   }
 
   @Get('forma-pago')
+  @Throttle({ default: { ttl: 60_000, limit: 60 } })
   @ApiOperation({ summary: 'Listar formas de pago' })
   async getFormaPago() {
     return this.catalogosService.getFormaPago();
   }
 
   @Get('regimen-fiscal')
+  @Throttle({ default: { ttl: 60_000, limit: 60 } })
   @ApiOperation({ summary: 'Listar regímenes fiscales' })
   async getRegimenFiscal(@Query() query: QueryCatalogoRegimenDto) {
     return this.catalogosService.getRegimenFiscal(query.tipo);
   }
 
   @Get('metodo-pago')
+  @Throttle({ default: { ttl: 60_000, limit: 60 } })
   @ApiOperation({ summary: 'Listar métodos de pago' })
   async getMetodoPago() {
     return this.catalogosService.getMetodoPago();
   }
 
   @Get('tipo-relacion')
+  @Throttle({ default: { ttl: 60_000, limit: 60 } })
   @ApiOperation({ summary: 'Listar tipos de relación' })
   async getTipoRelacion() {
     return this.catalogosService.getTipoRelacion();
@@ -69,10 +75,11 @@ export class CatalogosController {
   // --- Endpoints de Administración ---
 
   @Post('sync')
-  @UseGuards(RolesGuard)
-  @Roles('SUPER_ADMIN')
+  @ApiBearerAuth('bearer')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
   @ApiOperation({
-    summary: 'Forzar sincronización de catálogos (solo SUPER_ADMIN)',
+    summary: 'Forzar sincronización de catálogos (solo admin)',
   })
   async syncCatalogos() {
     await this.syncService.syncAll();

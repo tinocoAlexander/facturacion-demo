@@ -1,11 +1,11 @@
-import { Injectable, Inject, Logger, HttpStatus } from '@nestjs/common';
+import { Injectable, Inject, Logger, HttpStatus, Optional } from '@nestjs/common';
 import { I_TICKETS_REPOSITORY } from '../interfaces/tickets-repository.interface';
 import type { ITicketsRepository } from '../interfaces/tickets-repository.interface';
 import { QueryTicketDto } from '../dtos';
 import { Ticket, TicketWithItems, TicketStats } from '../tickets.types';
 import { httpError } from '../../common/errors/http-error';
 import Redis from 'ioredis';
-import { REDIS_CLIENT } from '../../redis/redis.constants';
+import { InjectRedis } from '../../redis/redis.constants';
 
 @Injectable()
 export class TicketsQueryService {
@@ -13,7 +13,7 @@ export class TicketsQueryService {
 
   constructor(
     @Inject(I_TICKETS_REPOSITORY) private readonly repo: ITicketsRepository,
-    @Inject(REDIS_CLIENT) private readonly redis: Redis,
+    @Optional() @InjectRedis() private readonly redis: Redis | null,
   ) {}
 
   async findAllByEmpresa(
@@ -50,30 +50,27 @@ export class TicketsQueryService {
 
   async getStats(empresaId: string): Promise<TicketStats> {
     const cacheKey = `tickets:stats:${empresaId}`;
-
-    // Attempt cache read
-    try {
-      const cached = await this.redis.get(cacheKey);
-      if (cached) {
-        return JSON.parse(cached) as TicketStats;
+    
+    // Intentar leer del cache — falla silenciosamente si Redis no disponible
+    if (this.redis) {
+      try {
+        const cached = await this.redis.get(cacheKey);
+        if (cached) return JSON.parse(cached) as TicketStats;
+      } catch (err) {
+        this.logger.warn('Redis cache read failed, falling back to DB', 
+          (err as Error).message);
       }
-    } catch (error) {
-      this.logger.warn(
-        'Error leyendo caché de stats en Redis',
-        (error as Error).message,
-      );
     }
 
     const stats = await this.repo.statsByEmpresa(empresaId);
 
-    // Write to cache (5 min TTL)
-    try {
-      await this.redis.set(cacheKey, JSON.stringify(stats), 'EX', 300);
-    } catch (error) {
-      this.logger.warn(
-        'Error escribiendo caché de stats en Redis',
-        (error as Error).message,
-      );
+    // Escribir al cache — falla silenciosamente
+    if (this.redis) {
+      try {
+        await this.redis.setex(cacheKey, 300, JSON.stringify(stats));
+      } catch (err) {
+        this.logger.warn('Redis cache write failed', (err as Error).message);
+      }
     }
 
     return stats;

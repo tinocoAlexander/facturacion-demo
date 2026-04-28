@@ -4,7 +4,7 @@ import type { Request } from 'express';
 export type CurrentUserPayload = {
   id: number;
   email: string;
-  role: string;
+  role: 'user' | 'admin' | 'cajero' | 'contador';
 };
 
 type RequestWithUser = Request & { user?: CurrentUserPayload };

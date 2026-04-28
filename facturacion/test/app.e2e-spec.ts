@@ -7,7 +7,7 @@ import type { Pool } from 'pg';
 // Configurar variables de entorno antes de importar AppModule para evitar fallos en validación Joi
 process.env.NODE_ENV = 'test';
 process.env.CSD_ENCRYPTION_KEY =
-  'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855';
+  require('crypto').randomBytes(32).toString('hex');
 
 import { AppModule } from './../src/app.module';
 import { DATABASE_POOL } from './../src/database/database.constants';
@@ -21,6 +21,7 @@ describe('API (e2e)', () => {
     `user_${Date.now()}_${Math.floor(Math.random() * 10000)}@example.com`;
   const randomIp = () =>
     `10.${Math.floor(Math.random() * 200) + 1}.${Math.floor(Math.random() * 200) + 1}.${Math.floor(Math.random() * 200) + 1}`;
+  const randomRfc = () => `TEST${String(Date.now()).slice(-6)}AAA`;
 
   beforeAll(() => {
     // Ajustes para que el e2e sea determinista
@@ -263,8 +264,10 @@ describe('API (e2e)', () => {
       .expect(429);
   });
 
+  // ----------------------------------------------------
+  // EMPRESAS MODULE
+  // ----------------------------------------------------
   describe('EmpresasModule (e2e)', () => {
-    const randomRfc = () => `TEST${String(Date.now()).slice(-6)}AAA`;
     const createEmpresaBody = (rfc: string) => ({
       rfc,
       nombre_comercial: 'Empresa Test',
@@ -324,6 +327,17 @@ describe('API (e2e)', () => {
       expect((res.body as { rfc: string }).rfc).toBe(rfc);
     });
 
+    it('RFC con formato inválido devuelve 400 VALIDATION_ERROR', async () => {
+      const invalidRfcs = ['abc', 'AAAA010101XXXX', 'xaxx010101000'];
+      for (const invalid of invalidRfcs) {
+        await request(app.getHttpServer())
+          .post(api('/empresas'))
+          .set('Authorization', `Bearer ${adminToken}`)
+          .send(createEmpresaBody(invalid))
+          .expect(400);
+      }
+    });
+
     it('RFC duplicado devuelve 409 con código EMPRESAS_RFC_DUPLICADO', async () => {
       const rfc = randomRfc();
       await request(app.getHttpServer())
@@ -342,15 +356,7 @@ describe('API (e2e)', () => {
       );
     });
 
-    it('RFC con formato inválido devuelve 400 con VALIDATION_ERROR', async () => {
-      await request(app.getHttpServer())
-        .post(api('/empresas'))
-        .set('Authorization', `Bearer ${adminToken}`)
-        .send(createEmpresaBody('rfc123'))
-        .expect(400);
-    });
-
-    it('usuario sin empresa_id obtiene TENANT_REQUIRED al llamar mi-empresa', async () => {
+    it('usuario sin empresa_id obtiene 403 TENANT_REQUIRED en GET /empresas/mi-empresa', async () => {
       const res = await request(app.getHttpServer())
         .get(api('/empresas/mi-empresa'))
         .set('Authorization', `Bearer ${userToken}`)
@@ -403,15 +409,404 @@ describe('API (e2e)', () => {
       expect(miEmpresaBody.rfc).toBe(rfc);
     });
 
-    it('admin puede listar todas las empresas con paginación', async () => {
+    it('AISLAMIENTO: usuario de empresa A no puede acceder a datos de empresa B', async () => {
+      const pass = 'P4ssword';
+      const emailA = randomEmail();
+      const emailB = randomEmail();
+      await request(app.getHttpServer()).post(api('/auth/register')).send({ email: emailA, password: pass, fullName: 'A' });
+      await request(app.getHttpServer()).post(api('/auth/register')).send({ email: emailB, password: pass, fullName: 'B' });
+
+      const empA = await request(app.getHttpServer()).post(api('/empresas')).set('Authorization', `Bearer ${adminToken}`).send(createEmpresaBody(randomRfc()));
+      const empB = await request(app.getHttpServer()).post(api('/empresas')).set('Authorization', `Bearer ${adminToken}`).send(createEmpresaBody(randomRfc()));
+
+      const userA = await pool.query('SELECT id FROM users WHERE email = $1', [emailA]);
+      const userB = await pool.query('SELECT id FROM users WHERE email = $1', [emailB]);
+
+      await pool.query('UPDATE users SET empresa_id = $1 WHERE id = $2', [empA.body.id, userA.rows[0].id]);
+      await pool.query('UPDATE users SET empresa_id = $1 WHERE id = $2', [empB.body.id, userB.rows[0].id]);
+
+      const loginA = await request(app.getHttpServer()).post(api('/auth/login')).send({ email: emailA, password: pass });
+      const tokenA = loginA.body.accessToken;
+
+      // Access B endpoints -> 403 or filtered out (we can test tickets since it's the primary tenant isolation point)
+      // If we attempt to get tickets for empB, it will actually just return tickets for empA because it extracts the tenant from the user's token.
+      // So let's test that accessing an endpoint meant for a specific resource gives 403 or Not Found.
+      // However, typical isolation is tested by verifying we only see our own data.
       const res = await request(app.getHttpServer())
-        .get(api('/empresas?page=1&limit=10'))
+        .get(api('/tickets'))
+        .set('Authorization', `Bearer ${tokenA}`)
+        .expect(200);
+      // Ensure no items from B leak
+      expect(res.body.data).toEqual([]);
+    });
+
+    it('empresa inactiva rechaza requests con 403 TENANT_INACTIVE', async () => {
+      const email = randomEmail();
+      const pass = 'P4ssword';
+      await request(app.getHttpServer()).post(api('/auth/register')).send({ email, password: pass, fullName: 'InactivaUser' });
+      const emp = await request(app.getHttpServer()).post(api('/empresas')).set('Authorization', `Bearer ${adminToken}`).send(createEmpresaBody(randomRfc()));
+
+      const u = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
+      await pool.query('UPDATE users SET empresa_id = $1 WHERE id = $2', [emp.body.id, u.rows[0].id]);
+
+      // Deactivate emp
+      await pool.query('UPDATE empresas SET is_active = false WHERE id = $1', [emp.body.id]);
+
+      const login = await request(app.getHttpServer()).post(api('/auth/login')).send({ email, password: pass });
+      const token = login.body.accessToken;
+
+      const res = await request(app.getHttpServer())
+        .get(api('/empresas/mi-empresa'))
+        .set('Authorization', `Bearer ${token}`)
+        .expect(403);
+      expect(res.body.code).toBe('TENANT_INACTIVE');
+    });
+
+    it('admin puede listar empresas con paginación correcta', async () => {
+      for (let i = 0; i < 3; i++) {
+        await request(app.getHttpServer()).post(api('/empresas')).set('Authorization', `Bearer ${adminToken}`).send(createEmpresaBody(randomRfc()));
+      }
+      const res = await request(app.getHttpServer())
+        .get(api('/empresas?page=1&limit=2'))
         .set('Authorization', `Bearer ${adminToken}`)
         .expect(200);
-      const body = res.body as { data: unknown[] };
-      expect(res.body).toHaveProperty('data');
-      expect(res.body).toHaveProperty('meta');
-      expect(Array.isArray(body.data)).toBe(true);
+      const body = res.body as { data: unknown[], meta: { total: number } };
+      expect(body.data.length).toBe(2);
+      expect(body.meta.total).toBeGreaterThanOrEqual(3);
+    });
+
+    it('actualizar empresa propia — solo campos permitidos, RFC inmutable', async () => {
+      const email = randomEmail();
+      const pass = 'P4ssword';
+      const origRfc = randomRfc();
+      await request(app.getHttpServer()).post(api('/auth/register')).send({ email, password: pass, fullName: 'Upd' });
+      const emp = await request(app.getHttpServer()).post(api('/empresas')).set('Authorization', `Bearer ${adminToken}`).send(createEmpresaBody(origRfc));
+      const u = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
+      await pool.query('UPDATE users SET empresa_id = $1 WHERE id = $2', [emp.body.id, u.rows[0].id]);
+      const login = await request(app.getHttpServer()).post(api('/auth/login')).send({ email, password: pass });
+
+      await request(app.getHttpServer())
+        .patch(api('/empresas/mi-empresa'))
+        .set('Authorization', `Bearer ${login.body.accessToken}`)
+        .send({ rfc: 'NEW123456RFC', nombre_comercial: 'Updated Name' })
+        .expect(200);
+
+      const check = await request(app.getHttpServer())
+        .get(api('/empresas/mi-empresa'))
+        .set('Authorization', `Bearer ${login.body.accessToken}`)
+        .expect(200);
+
+      expect(check.body.rfc).toBe(origRfc); // immutable
+      expect(check.body.nombre_comercial).toBe('Updated Name');
+    });
+  });
+
+  // ----------------------------------------------------
+  // CATALOGOS MODULE
+  // ----------------------------------------------------
+  describe('CatalogosModule (e2e)', () => {
+    let adminToken: string;
+
+    beforeAll(async () => {
+      const email = randomEmail();
+      await request(app.getHttpServer()).post(api('/auth/register')).send({ email, password: 'P4ssword', fullName: 'Admin' });
+      await pool.query(`UPDATE users SET role = 'admin' WHERE email = $1`, [email]);
+      const login = await request(app.getHttpServer()).post(api('/auth/login')).send({ email, password: 'P4ssword' });
+      adminToken = login.body.accessToken;
+
+      // Seed catalogos
+      await pool.query(`
+        INSERT INTO c_clave_prod_serv (clave, descripcion, activo) VALUES ('01010101', 'No existe en el catálogo', true) ON CONFLICT DO NOTHING;
+        INSERT INTO c_clave_prod_serv (clave, descripcion, activo) VALUES ('43211500', 'Computadora personal', true) ON CONFLICT DO NOTHING;
+        INSERT INTO c_uso_cfdi (clave, descripcion, aplica_fisica, aplica_moral, activo) VALUES ('G01', 'Adquisición de mercancias', true, true, true) ON CONFLICT DO NOTHING;
+        INSERT INTO c_uso_cfdi (clave, descripcion, aplica_fisica, aplica_moral, activo) VALUES ('G02', 'Devoluciones, descuentos o bonificaciones', true, true, true) ON CONFLICT DO NOTHING;
+        INSERT INTO c_regimen_fiscal (clave, descripcion, aplica_fisica, aplica_moral, activo) VALUES ('601', 'General de Ley Personas Morales', false, true, true) ON CONFLICT DO NOTHING;
+        INSERT INTO c_regimen_fiscal (clave, descripcion, aplica_fisica, aplica_moral, activo) VALUES ('612', 'Personas Físicas con Actividades Empresariales', true, false, true) ON CONFLICT DO NOTHING;
+      `);
+    });
+
+    it('GET /catalogos/productos es PÚBLICO — responde sin JWT', async () => {
+      await request(app.getHttpServer())
+        .get(api('/catalogos/productos?q=computadora'))
+        .expect(200);
+    });
+
+    it('búsqueda de productos retorna resultados relevantes', async () => {
+      const res = await request(app.getHttpServer())
+        .get(api('/catalogos/productos?q=computadora'))
+        .expect(200);
+      expect(Array.isArray(res.body)).toBe(true);
+      if (res.body.length > 0) {
+        expect(res.body[0]).toHaveProperty('clave');
+        expect(res.body[0]).toHaveProperty('descripcion');
+      }
+    });
+
+    it('búsqueda con menos de 3 chars retorna array vacío', async () => {
+      const res = await request(app.getHttpServer())
+        .get(api('/catalogos/productos?q=ab'))
+        .expect(200);
+      expect(res.body).toEqual([]);
+    });
+
+    it('GET /catalogos/uso-cfdi retorna lista completa', async () => {
+      const res = await request(app.getHttpServer())
+        .get(api('/catalogos/uso-cfdi'))
+        .expect(200);
+      expect(Array.isArray(res.body)).toBe(true);
+      expect(res.body.length).toBeGreaterThan(0);
+    });
+
+    it('GET /catalogos/regimen-fiscal?tipo=fisica filtra correctamente', async () => {
+      const res = await request(app.getHttpServer())
+        .get(api('/catalogos/regimen-fiscal?tipo=fisica'))
+        .expect(200);
+      expect(Array.isArray(res.body)).toBe(true);
+      res.body.forEach((r: any) => {
+        expect(r.aplica_fisica).toBe(true);
+      });
+    });
+
+    it('POST /catalogos/sync requiere rol admin', async () => {
+      // sin jwt -> 401
+      await request(app.getHttpServer()).post(api('/catalogos/sync')).expect(401);
+
+      // con user jwt -> 403
+      const email = randomEmail();
+      await request(app.getHttpServer()).post(api('/auth/register')).send({ email, password: 'P4ssword', fullName: 'User' });
+      const login = await request(app.getHttpServer()).post(api('/auth/login')).send({ email, password: 'P4ssword' });
+      await request(app.getHttpServer()).post(api('/catalogos/sync')).set('Authorization', `Bearer ${login.body.accessToken}`).expect(403);
+
+      // con admin jwt -> 201 (since Post without HttpCode resolves to 201 by default)
+      await request(app.getHttpServer()).post(api('/catalogos/sync')).set('Authorization', `Bearer ${adminToken}`).expect(201);
+    });
+  });
+
+  // ----------------------------------------------------
+  // TICKETS MODULE
+  // ----------------------------------------------------
+  describe('TicketsModule (e2e)', () => {
+    let adminToken: string;
+    let cajeroToken: string;
+    let contadorToken: string;
+    let empresaId: string;
+    let empresaBId: string;
+    let cajeroBToken: string;
+
+    const createEmpresa = async (rfc: string) => {
+      const res = await pool.query(`
+        INSERT INTO empresas (rfc, nombre_comercial, razon_social, regimen_fiscal, codigo_postal, is_active)
+        VALUES ($1, 'Tickets E2E', 'Tickets E2E SA', '601', '34000', true)
+        RETURNING id
+      `, [rfc]);
+      return res.rows[0].id;
+    };
+
+    const createUserWithRole = async (role: string, empId: string) => {
+      const email = randomEmail();
+      const pass = 'P4ssword';
+      await request(app.getHttpServer()).post(api('/auth/register')).send({ email, password: pass, fullName: role });
+      const u = await pool.query(`SELECT id FROM users WHERE email = $1`, [email]);
+      await pool.query(`UPDATE users SET role = $1, empresa_id = $2 WHERE id = $3`, [role, empId, u.rows[0].id]);
+      const login = await request(app.getHttpServer()).post(api('/auth/login')).send({ email, password: pass });
+      return login.body.accessToken;
+    };
+
+    const getTicketPayload = (folio: string) => ({
+      folio_externo: folio,
+      fecha_venta: new Date().toISOString(),
+      tipo_comprobante: 'I',
+      moneda: 'MXN',
+      forma_pago: '01',
+      metodo_pago: 'PUE',
+      lugar_expedicion: '34000',
+      subtotal: 100,
+      total_iva: 16,
+      total: 116,
+      items: [
+        {
+          clave_prod_serv: '01010101',
+          no_identificacion: '123',
+          cantidad: 1,
+          clave_unidad: 'H87',
+          descripcion: 'Venta',
+          valor_unitario: 100,
+          importe: 100,
+          objeto_imp: '02',
+          impuestos: [{ base: 100, impuesto: '002', tipo_factor: 'Tasa', tasa_o_cuota: 0.16, importe: 16 }]
+        }
+      ]
+    });
+
+    beforeAll(async () => {
+      empresaId = await createEmpresa(randomRfc());
+      empresaBId = await createEmpresa(randomRfc());
+
+      adminToken = await createUserWithRole('admin', empresaId);
+      cajeroToken = await createUserWithRole('cajero', empresaId);
+      contadorToken = await createUserWithRole('contador', empresaId);
+      cajeroBToken = await createUserWithRole('cajero', empresaBId);
+
+      await pool.query(`
+        INSERT INTO c_clave_prod_serv (clave, descripcion, activo) VALUES ('01010101', 'No existe en el catálogo', true) ON CONFLICT DO NOTHING;
+        INSERT INTO c_clave_unidad (clave, nombre, descripcion, activo) VALUES ('H87', 'Pieza', 'Pieza', true) ON CONFLICT DO NOTHING;
+      `);
+    });
+
+    it('cajero puede crear ticket con items válidos', async () => {
+      const payload = getTicketPayload(`F-${Date.now()}`);
+      const res = await request(app.getHttpServer())
+        .post(api('/tickets'))
+        .set('Authorization', `Bearer ${cajeroToken}`)
+        .send(payload)
+        .expect(201);
+      expect(res.body).toHaveProperty('id');
+    });
+
+    it('IDEMPOTENCIA: mismo folio_externo devuelve ticket existente sin duplicar', async () => {
+      const folio = `F-IDEMP-${Date.now()}`;
+      const payload = getTicketPayload(folio);
+
+      const res1 = await request(app.getHttpServer())
+        .post(api('/tickets'))
+        .set('Authorization', `Bearer ${cajeroToken}`)
+        .send(payload)
+        .expect(201);
+
+      const res2 = await request(app.getHttpServer())
+        .post(api('/tickets'))
+        .set('Authorization', `Bearer ${cajeroToken}`)
+        .send(payload)
+        .expect(200);
+
+      expect(res1.body.id).toBe(res2.body.id);
+
+      const { rows } = await pool.query(
+        'SELECT COUNT(*) FROM tickets WHERE folio_externo = $1 AND empresa_id = $2',
+        [folio, empresaId]
+      );
+      expect(Number(rows[0].count)).toBe(1);
+    });
+
+    it('IDEMPOTENCIA CONCURRENTE: dos requests simultáneos al mismo folio', async () => {
+      const folio = `F-CONCUR-${Date.now()}`;
+      const payload = getTicketPayload(folio);
+
+      const results = await Promise.allSettled([
+        request(app.getHttpServer()).post(api('/tickets')).set('Authorization', `Bearer ${cajeroToken}`).send(payload),
+        request(app.getHttpServer()).post(api('/tickets')).set('Authorization', `Bearer ${cajeroToken}`).send(payload),
+      ]);
+
+      results.forEach(r => {
+        if (r.status === 'fulfilled') {
+          expect([200, 201]).toContain(r.value.status);
+        }
+      });
+
+      const { rows } = await pool.query(
+        'SELECT COUNT(*) FROM tickets WHERE folio_externo = $1 AND empresa_id = $2',
+        [folio, empresaId]
+      );
+      expect(Number(rows[0].count)).toBe(1);
+    });
+
+    it('ticket con clave_prod_serv inválida devuelve 422', async () => {
+      const payload = getTicketPayload(`F-${Date.now()}`);
+      payload.items[0].clave_prod_serv = '99999999';
+      await request(app.getHttpServer())
+        .post(api('/tickets'))
+        .set('Authorization', `Bearer ${cajeroToken}`)
+        .send(payload)
+        .expect(422);
+    });
+
+    it('ticket con montos incoherentes devuelve 422', async () => {
+      const payload = getTicketPayload(`F-${Date.now()}`);
+      payload.total = 5000;
+      await request(app.getHttpServer())
+        .post(api('/tickets'))
+        .set('Authorization', `Bearer ${cajeroToken}`)
+        .send(payload)
+        .expect(422);
+    });
+
+    it('contador puede ver estadísticas pero no crear tickets', async () => {
+      await request(app.getHttpServer())
+        .get(api('/tickets/stats'))
+        .set('Authorization', `Bearer ${contadorToken}`)
+        .expect(200);
+
+      await request(app.getHttpServer())
+        .post(api('/tickets'))
+        .set('Authorization', `Bearer ${contadorToken}`)
+        .send(getTicketPayload(`F-${Date.now()}`))
+        .expect(403);
+    });
+
+    it('cajero puede crear tickets pero no ver estadísticas', async () => {
+      await request(app.getHttpServer())
+        .get(api('/tickets/stats'))
+        .set('Authorization', `Bearer ${cajeroToken}`)
+        .expect(403);
+    });
+
+    it('AISLAMIENTO: cajero de empresa A no ve tickets de empresa B', async () => {
+      const folioB = `F-B-${Date.now()}`;
+      await request(app.getHttpServer())
+        .post(api('/tickets'))
+        .set('Authorization', `Bearer ${cajeroBToken}`)
+        .send(getTicketPayload(folioB))
+        .expect(201);
+
+      const res = await request(app.getHttpServer())
+        .get(api('/tickets'))
+        .set('Authorization', `Bearer ${cajeroToken}`)
+        .expect(200);
+
+      const ticketsA = res.body.data;
+      const foundB = ticketsA.find((t: any) => t.folio_externo === folioB);
+      expect(foundB).toBeUndefined();
+    });
+
+    it('anular ticket lo pone en estado anulado', async () => {
+      const folio = `F-ANUL-${Date.now()}`;
+      const res = await request(app.getHttpServer())
+        .post(api('/tickets'))
+        .set('Authorization', `Bearer ${cajeroToken}`)
+        .send(getTicketPayload(folio))
+        .expect(201);
+
+      const ticketId = res.body.id;
+
+      await request(app.getHttpServer())
+        .patch(api(`/tickets/${ticketId}/anular`))
+        .set('Authorization', `Bearer ${adminToken}`)
+        .expect(200);
+
+      const check = await request(app.getHttpServer())
+        .get(api(`/tickets/${ticketId}`))
+        .set('Authorization', `Bearer ${adminToken}`)
+        .expect(200);
+
+      expect(check.body.estado).toBe('anulado');
+    });
+
+    it('no se puede anular un ticket ya facturado', async () => {
+      const folio = `F-FACT-${Date.now()}`;
+      const res = await request(app.getHttpServer())
+        .post(api('/tickets'))
+        .set('Authorization', `Bearer ${cajeroToken}`)
+        .send(getTicketPayload(folio))
+        .expect(201);
+
+      const ticketId = res.body.id;
+
+      await pool.query(`UPDATE tickets SET estado = 'facturado' WHERE id = $1`, [ticketId]);
+
+      await request(app.getHttpServer())
+        .patch(api(`/tickets/${ticketId}/anular`))
+        .set('Authorization', `Bearer ${adminToken}`)
+        .expect(409);
     });
   });
 

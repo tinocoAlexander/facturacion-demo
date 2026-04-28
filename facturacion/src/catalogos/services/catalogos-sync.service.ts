@@ -1,10 +1,12 @@
 import {
   Injectable,
   Logger,
-  OnApplicationBootstrap,
+  OnModuleInit,
   Inject,
 } from '@nestjs/common';
-import { Cron, CronExpression } from '@nestjs/schedule';
+import { ConfigService } from '@nestjs/config';
+import { SchedulerRegistry } from '@nestjs/schedule';
+import { CronJob } from 'cron';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as csv from 'csv-parser';
@@ -12,23 +14,24 @@ import { I_CATALOGOS_REPOSITORY } from '../interfaces/catalogos-repository.inter
 import type { ICatalogosRepository } from '../interfaces/catalogos-repository.interface';
 
 @Injectable()
-export class CatalogosSyncService implements OnApplicationBootstrap {
+export class CatalogosSyncService implements OnModuleInit {
   private readonly logger = new Logger(CatalogosSyncService.name);
 
   constructor(
+    private readonly config: ConfigService,
+    private readonly schedulerRegistry: SchedulerRegistry,
     @Inject(I_CATALOGOS_REPOSITORY) private readonly repo: ICatalogosRepository,
   ) {}
 
-  async onApplicationBootstrap() {
-    // Optionally trigger initial load if DB is empty
-    // await this.syncAll();
+  onModuleInit() {
+    const cronExpression = this.config.get<string>('CATALOGOS_SYNC_CRON') ?? '0 2 * * 0';
+    const job = new CronJob(cronExpression, () => void this.syncAll());
+    this.schedulerRegistry.addCronJob('catalogos-sync', job);
+    job.start();
+    this.logger.log(`Sync de catálogos programado: ${cronExpression}`);
   }
 
-  @Cron(CronExpression.EVERY_WEEK)
-  async handleCron() {
-    this.logger.log('Iniciando sincronización semanal de catálogos SAT...');
-    await this.syncAll();
-  }
+
 
   async syncAll() {
     try {

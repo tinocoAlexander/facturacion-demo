@@ -8,7 +8,7 @@ import { I_USERS_REPOSITORY } from '../../users/interfaces/users-repository.inte
 export interface JwtPayload {
   sub: number;
   email: string;
-  role: 'user' | 'admin';
+  role: 'user' | 'admin' | 'cajero' | 'contador';
   empresa_id: string | null; // null para admins del sistema
 }
 

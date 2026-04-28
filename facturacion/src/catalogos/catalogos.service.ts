@@ -1,4 +1,4 @@
-import { Injectable, HttpStatus, Inject } from '@nestjs/common';
+import { Injectable, HttpStatus, Inject, Optional, Logger } from '@nestjs/common';
 import { Redis } from 'ioredis';
 import { I_CATALOGOS_REPOSITORY } from './interfaces/catalogos-repository.interface';
 import type { ICatalogosRepository } from './interfaces/catalogos-repository.interface';
@@ -9,9 +9,11 @@ import { httpError } from '../common/errors/http-error';
 
 @Injectable()
 export class CatalogosService {
+  private readonly logger = new Logger(CatalogosService.name);
+
   constructor(
     @Inject(I_CATALOGOS_REPOSITORY) private readonly repo: ICatalogosRepository,
-    @Inject(REDIS_CLIENT) private readonly redis: Redis,
+    @Optional() @Inject(REDIS_CLIENT) private readonly redis: Redis | null,
   ) {}
 
   private readonly CACHE_TTL_ALL = 86400; // 24h
@@ -22,12 +24,26 @@ export class CatalogosService {
     fetcher: () => Promise<T>,
     ttl: number,
   ): Promise<T> {
-    const cached = await this.redis.get(key);
-    if (cached) {
-      return JSON.parse(cached) as T;
+    if (this.redis) {
+      try {
+        const cached = await this.redis.get(key);
+        if (cached !== null) return JSON.parse(cached) as T;
+      } catch (err) {
+        this.logger.warn(`Cache read failed for ${key}`, (err as Error).message);
+      }
     }
+
     const data = await fetcher();
-    await this.redis.set(key, JSON.stringify(data), 'EX', ttl);
+
+    if (this.redis) {
+      try {
+        // Cachear incluso arrays vacíos para prevenir cache stampede
+        await this.redis.setex(key, ttl, JSON.stringify(data));
+      } catch (err) {
+        this.logger.warn(`Cache write failed for ${key}`, (err as Error).message);
+      }
+    }
+
     return data;
   }
 

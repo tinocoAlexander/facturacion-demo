@@ -114,15 +114,18 @@ export const envValidationSchema = Joi.object({
   BACKUP_CRON: Joi.string().default('0 4 * * *'),
   BACKUP_PATH: Joi.string().default('./backups'),
 
+  // Catalogos
+  CATALOGOS_SYNC_CRON: Joi.string().default('0 2 * * 0'),
+
   // CSD Encryption
   CSD_ENCRYPTION_KEY: Joi.string()
     .hex()
     .length(64)
-    .when('NODE_ENV', {
-      is: 'production',
-      then: Joi.required(),
-      otherwise: Joi.optional().default(
-        'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
-      ),
+    .required()
+    .messages({
+      'any.required': 'CSD_ENCRYPTION_KEY es requerida. Generar con: ' +
+        'node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"',
+      'string.length': 'CSD_ENCRYPTION_KEY debe tener exactamente 64 caracteres hex (32 bytes)',
+      'string.hex': 'CSD_ENCRYPTION_KEY debe ser una cadena hexadecimal válida',
     }),
 });

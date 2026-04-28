@@ -1,118 +1,71 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Sistema de Facturación NestJS
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+Un backend robusto en NestJS para la gestión de facturación electrónica, construido con un enfoque en seguridad, diseño multitenant (multi-empresa) y alta disponibilidad.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## Descripción del Sistema
+Este sistema permite la ingesta, validación y gestión de tickets, integrando catálogos del SAT para la eventual emisión de CFDI. Soporta múltiples empresas concurrentes en la misma base de datos, proporcionando un entorno seguro mediante políticas de Control de Acceso Basado en Roles (RBAC) y `TenantGuard`.
 
-## Description
+## Arquitectura
+La aplicación utiliza Arquitectura Hexagonal y Domain-Driven Design (DDD):
+- **Capa HTTP**: Controladores, Guards (JWT, Roles, Tenant) y Validaciones mediante Joi y `class-validator`.
+- **Capa de Dominio**: Servicios e interfaces con tipos inmutables TypeScript y lógica de negocio pura.
+- **Capa de Datos**: Repositorios inyectables que centralizan todo el acceso a la base de datos (se aplica una política estricta de cero sentencias SQL dentro de la capa de servicios).
 
-Sistema de facturación progresivo desarrollado con [Nest](https://github.com/nestjs/nest).
+Dependencias principales:
+- **PostgreSQL 16**: Base de datos primaria.
+- **Redis 7**: Cache centralizado y sistema de throttling (es opcional; la app efectúa *fallback* si no existe).
 
-## Development
+## Módulos y Responsabilidades
+- **AuthModule**: Gestión de JWT (con soporte de claves asimétricas RS256 o simétricas HS256) y protección contra fuerza bruta.
+- **EmpresasModule**: Administración del contexto de empresas y validación de entidades legales (RFCs).
+- **TicketsModule**: Ingesta masiva y listado de tickets usando validación de esquema, idempotencia concurrente y `unnest()` de Postgres.
+- **CatalogosModule**: Sincronización transparente de catálogos oficiales del SAT desde archivos seed de CSV.
+- **CsdsModule**: Gestión de sellos y certificados SAT cifrados en reposo (AES-256-GCM con rotación automática de IV).
 
-Para correr el proyecto en desarrollo, primero asegúrate de tener levantada la infraestructura necesaria:
+## Setup de Desarrollo
 
-1. **Infraestructura**:
+1. **Instalar dependencias**: 
    ```bash
-   # Ir al directorio de contenedores y levantar DB y Redis
-   $ cd ../contenedores
-   $ docker-compose up -d
+   npm ci
+   ```
+2. **Copiar y ajustar configuración**: 
+   ```bash
+   cp .env.example .env
+   ```
+   (Asegúrate de llenar las claves de la base de datos y generar tu propia `CSD_ENCRYPTION_KEY`).
+3. **Levantar contenedores**: Es necesario que corras PostgreSQL localmente para desarrollar.
+4. **Correr migraciones de Base de Datos**: 
+   ```bash
+   npm run db:migrate
+   ```
+5. **Iniciar proyecto**: 
+   ```bash
+   npm run start:dev
    ```
 
-2. **Aplicación**:
-   ```bash
-   # Instalar dependencias
-   $ npm install
-   
-   # Correr en modo desarrollo (watch mode)
-   $ npm run start:dev
-   ```
+## Variables de Entorno Críticas
+- `JWT_SECRET`: Requerida para desarrollos y firmas simétricas. Mínimo de 32 caracteres dictado por Joi.
+- `JWT_PRIVATE_KEY` / `JWT_PUBLIC_KEY`: Par RSA para firmas en producción (Recomendado).
+- `CSD_ENCRYPTION_KEY`: Master Key de 32 bytes (64 caracteres hex) generada criptográficamente para cifrar certificados. **CRÍTICO:** Nunca uses un valor predecible.
+- `DB_USER`, `DB_PASSWORD`, `DB_NAME`: Credenciales obligatorias.
 
-## Production Build
-
-### Docker (Recomendado)
-El proyecto utiliza un `Dockerfile` multi-stage para generar una imagen ligera y segura:
-
+## Tests
+El proyecto cuenta con suites unitarias y un entorno de test `e2e` que emplea *TestContainers* (a través de CI o red local) validando los módulos sin usar *mocks*:
 ```bash
-# Generar la imagen de producción
-$ docker build -t facturacion-api .
-
-# Correr el contenedor (asegúrate de pasar las variables de entorno)
-$ docker run -p 3000:3000 --env-file .env facturacion-api
+# Correr entorno End-to-End
+npm run test:e2e
 ```
 
-### Build Manual
-```bash
-$ npm run build
-$ npm run start:prod
-```
+## Decisiones de Arquitectura
+Por favor revisar el directorio de decisiones arquitectónicas (`docs/decisions/`) para entender en detalle los porqués de la implementación.
+- [001: UUID para IDs de empresas](./docs/decisions/001-uuid-for-empresas.md)
+- [002: JWT RS256 Fallback a HS256](./docs/decisions/002-jwt-rs256-fallback-hs256.md)
+- [003: Redis es Opcional (Fallback)](./docs/decisions/003-redis-optional-fallback.md)
+- [004: AES-256-GCM para CSD](./docs/decisions/004-aes-256-gcm-for-csd.md)
 
-## Environment Variables
-
-El proyecto utiliza un esquema de validación estricto con Joi. Las variables principales son:
-
-| Variable | Descripción | Default |
-|----------|-------------|---------|
-| `PORT` | Puerto de la aplicación | 3000 |
-| `DB_HOST` | Host de PostgreSQL | localhost |
-| `DB_USER` | Usuario de PostgreSQL | (requerido) |
-| `DB_PASSWORD` | Contraseña de PostgreSQL | (requerido) |
-| `JWT_SECRET` | Secreto JWT (mín 32 chars) | (requerido) |
-| `REDIS_URL` | URL de Redis | (opcional) |
-| `REDIS_PASSWORD` | Contraseña de Redis | (opcional) |
-| `CLEANUP_CRON` | Cron para limpieza de tokens | 0 3 * * * |
-
-Para más detalles, consulta `.env.example`.
-
-## Testing
-
-```bash
-# Unit tests
-$ npm run test
-
-# E2E tests (requiere infraestructura de test)
-$ npm run test:e2e
-
-# Cobertura
-$ npm run test:cov
-```
-
-## CI/CD
-El proyecto incluye un workflow de GitHub Actions que corre automáticamente en cada push a `main`:
-- **Lint**: Verificación de estilo.
-- **Test**: Ejecución de tests E2E con servicios reales (Postgres/Redis) en Docker.
-- **Build**: Verificación de que la imagen de Docker se construye correctamente.
-
----
-
-## Swagger (OpenAPI)
-
-- URL: `http://localhost:3000/api/v1/docs`
-- En `production`: se habilita solo si `SWAGGER_ENABLED=true`.
-
-## Metrics (Prometheus)
-
-- URL: `http://localhost:3000/metrics`
-- En `production`: se habilita solo si `METRICS_ENABLED=true` y requiere BasicAuth.
-
----
-
-## License
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+## Roles del Sistema
+El sistema hace distinción estricta de identidades a través de roles controlados por el `RolesGuard`:
+- `admin`: Dueño o encargado total de la empresa (puede agregar usuarios, modificar settings y certificados).
+- `contador`: Nivel estadístico que accede a reportes y resúmenes tributarios sin capacidad mutacional de la ingesta de transacciones.
+- `cajero`: Ingesta masiva y creación de tickets, aislado sin posibilidad de visualizar estadísticas del negocio.
+- `user`: Rol de sistema base (sólo consultas perfil).

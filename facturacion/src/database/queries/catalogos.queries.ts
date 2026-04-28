@@ -56,9 +56,9 @@ export const CATALOGOS_QUERIES = {
   // --- Validaciones puntuales ---
   VALIDATE_CLAVE_PROD_SERV: `SELECT 1 FROM c_clave_prod_serv WHERE clave = $1 AND activo = true LIMIT 1`,
   VALIDATE_CLAVE_UNIDAD: `SELECT 1 FROM c_clave_unidad WHERE clave = $1 AND activo = true LIMIT 1`,
-  VALIDATE_USO_CFDI: `SELECT 1 FROM c_uso_cfdi WHERE clave = $1 AND activo = true LIMIT 1`,
+  VALIDATE_USO_CFDI: `SELECT clave, aplica_fisica, aplica_moral FROM c_uso_cfdi WHERE clave = $1 AND activo = true LIMIT 1`,
   VALIDATE_FORMA_PAGO: `SELECT 1 FROM c_forma_pago WHERE clave = $1 AND activo = true LIMIT 1`,
-  VALIDATE_REGIMEN_FISCAL: `SELECT 1 FROM c_regimen_fiscal WHERE clave = $1 AND activo = true LIMIT 1`,
+  VALIDATE_REGIMEN_FISCAL: `SELECT clave, aplica_fisica, aplica_moral FROM c_regimen_fiscal WHERE clave = $1 AND activo = true LIMIT 1`,
   VALIDATE_METODO_PAGO: `SELECT 1 FROM c_metodo_pago WHERE clave = $1 AND activo = true LIMIT 1`,
   VALIDATE_TIPO_RELACION: `SELECT 1 FROM c_tipo_relacion WHERE clave = $1 AND activo = true LIMIT 1`,
 
