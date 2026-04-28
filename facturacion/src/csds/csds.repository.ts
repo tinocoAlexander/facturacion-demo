@@ -58,6 +58,7 @@ export class CsdsRepository implements ICsdRepository {
         data.iv_cer,
         data.iv_key,
         data.iv_password,
+        data.key_version,
         data.fecha_inicio_vigencia,
         data.fecha_fin_vigencia,
       ]);

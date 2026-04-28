@@ -1,7 +1,7 @@
 export const CSD_QUERIES = {
   FIND_ACTIVE_BY_EMPRESA: `
     SELECT id, empresa_id, no_certificado, cer_cifrado, key_cifrado, password_cifrado,
-           iv_cer, iv_key, iv_password, fecha_inicio_vigencia, fecha_fin_vigencia,
+           iv_cer, iv_key, iv_password, key_version, fecha_inicio_vigencia, fecha_fin_vigencia,
            is_active, created_at, updated_at
     FROM csds
     WHERE empresa_id = $1 AND is_active = true
@@ -10,7 +10,7 @@ export const CSD_QUERIES = {
 
   FIND_BY_ID: `
     SELECT id, empresa_id, no_certificado, cer_cifrado, key_cifrado, password_cifrado,
-           iv_cer, iv_key, iv_password, fecha_inicio_vigencia, fecha_fin_vigencia,
+           iv_cer, iv_key, iv_password, key_version, fecha_inicio_vigencia, fecha_fin_vigencia,
            is_active, created_at, updated_at
     FROM csds
     WHERE id = $1 AND empresa_id = $2
@@ -20,12 +20,12 @@ export const CSD_QUERIES = {
   CREATE: `
     INSERT INTO csds (
       empresa_id, no_certificado, cer_cifrado, key_cifrado, password_cifrado,
-      iv_cer, iv_key, iv_password, fecha_inicio_vigencia, fecha_fin_vigencia,
+      iv_cer, iv_key, iv_password, key_version, fecha_inicio_vigencia, fecha_fin_vigencia,
       is_active
     )
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, false)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, false)
     RETURNING id, empresa_id, no_certificado, cer_cifrado, key_cifrado, password_cifrado,
-              iv_cer, iv_key, iv_password, fecha_inicio_vigencia, fecha_fin_vigencia,
+              iv_cer, iv_key, iv_password, key_version, fecha_inicio_vigencia, fecha_fin_vigencia,
               is_active, created_at, updated_at
   `,
 
@@ -56,5 +56,25 @@ export const CSD_QUERIES = {
 
   CHECK_NO_CERTIFICADO: `
     SELECT 1 FROM csds WHERE no_certificado = $1 LIMIT 1
+  `,
+
+  // Queries para rotación de llaves
+  FIND_ALL_FOR_ROTATION: `
+    SELECT id, no_certificado, cer_cifrado, key_cifrado, password_cifrado,
+           iv_cer, iv_key, iv_password, key_version
+    FROM csds
+  `,
+
+  UPDATE_ENCRYPTED_DATA: `
+    UPDATE csds
+    SET cer_cifrado = $1,
+        key_cifrado = $2,
+        password_cifrado = $3,
+        iv_cer = $4,
+        iv_key = $5,
+        iv_password = $6,
+        key_version = $7,
+        updated_at = NOW()
+    WHERE id = $8
   `,
 } as const;

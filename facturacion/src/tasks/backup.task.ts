@@ -9,11 +9,13 @@ import { ConfigService } from '@nestjs/config';
 import { CronJob } from 'cron';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
-import { join, normalize } from 'path';
+import { resolve } from 'path';
 import { mkdir } from 'fs/promises';
 import { AuditService } from '../audit/audit.service';
 
 const execFileAsync = promisify(execFile);
+
+import { requestContextStorage } from '../common/request-context/request-context';
 
 @Injectable()
 export class BackupTask implements OnModuleInit {
@@ -30,7 +32,12 @@ export class BackupTask implements OnModuleInit {
       this.config.get<string>('BACKUP_CRON') || '0 4 * * *';
 
     const job = new CronJob(cronExpression, () => {
-      void this.handleBackup();
+      requestContextStorage.run(
+        { requestId: `job-backup-${Date.now()}` },
+        () => {
+          void this.handleBackup();
+        },
+      );
     });
 
     this.schedulerRegistry.addCronJob('db-backup', job);
@@ -47,28 +54,30 @@ export class BackupTask implements OnModuleInit {
     const user = this.config.get<string>('DB_USER');
     const db = this.config.get<string>('DB_NAME');
     const password = this.config.get<string>('DB_PASSWORD');
-    const backupPath = this.config.get<string>('BACKUP_PATH') || './backups';
+    const rawBackupPath = this.config.get<string>('BACKUP_PATH') || './backups';
 
-    // 1. Validación de Path Traversal
-    if (
-      backupPath.includes('..') ||
-      !normalize(backupPath).startsWith(normalize(backupPath))
-    ) {
+    // Resolver el directorio base relativo al current working directory
+    const baseDir = resolve(process.cwd(), rawBackupPath);
+
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const filename = `backup-${db}-${timestamp}.sql`;
+
+    // Resolver la ruta completa del archivo
+    const fullPath = resolve(baseDir, filename);
+
+    // 1. Validación estricta de Path Traversal
+    if (!fullPath.startsWith(baseDir)) {
       this.logger.error(
-        `Ruta de backup inválida (Path Traversal detectado): ${backupPath}`,
+        `Ruta de backup inválida (Path Traversal detectado): intentando escribir fuera del directorio base en ${fullPath}`,
       );
       throw new InternalServerErrorException(
         'Configuración de backup insegura',
       );
     }
 
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const filename = `backup-${db}-${timestamp}.sql`;
-    const fullPath = join(backupPath, filename);
-
     try {
       // Asegurar que el directorio de backups existe
-      await mkdir(backupPath, { recursive: true });
+      await mkdir(baseDir, { recursive: true });
 
       // 2. Uso de execFile para prevenir Shell Injection
       // 3. Paso de PGPASSWORD vía environment variables, no en el string del comando

@@ -35,11 +35,27 @@ export async function runSqlMigrations(params: {
     }
 
     log(`Running: ${file}`);
-    const sql = fs.readFileSync(path.join(migrationsDir, file), 'utf-8');
+    let sql = fs.readFileSync(path.join(migrationsDir, file), 'utf-8');
 
-    await client.query(sql);
-    await client.query('INSERT INTO _migrations (name) VALUES ($1)', [file]);
+    // Opción 3: Transacción explícita manejada por el runner
+    // Strip de BEGIN; y COMMIT; del contenido (insensible a mayúsculas/minúsculas y whitespace)
+    sql = sql
+      .replace(/^\s*BEGIN\s*;?\s*/im, '')
+      .replace(/\s*COMMIT\s*;?\s*$/im, '')
+      .trim();
 
-    log(`Done: ${file}`);
+    try {
+      await client.query('BEGIN');
+
+      await client.query(sql);
+      await client.query('INSERT INTO _migrations (name) VALUES ($1)', [file]);
+
+      await client.query('COMMIT');
+      log(`Done: ${file}`);
+    } catch (err) {
+      await client.query('ROLLBACK');
+      log(`Error running migration ${file}: ${(err as Error).message}`);
+      throw err;
+    }
   }
 }

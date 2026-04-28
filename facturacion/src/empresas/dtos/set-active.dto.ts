@@ -4,5 +4,5 @@ import { IsBoolean } from 'class-validator';
 export class SetActiveDto {
   @ApiProperty({ example: true })
   @IsBoolean()
-  isActive: boolean;
+  isActive!: boolean;
 }

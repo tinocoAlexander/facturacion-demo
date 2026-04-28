@@ -1,7 +1,15 @@
-import { Inject, Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  Inject,
+  Injectable,
+  UnauthorizedException,
+  OnModuleInit,
+  OnModuleDestroy,
+  Logger,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
+import Redis from 'ioredis';
 import type { IUsersRepository } from '../../users/interfaces/users-repository.interface';
 import { I_USERS_REPOSITORY } from '../../users/interfaces/users-repository.interface';
 
@@ -13,21 +21,27 @@ export interface JwtPayload {
 }
 
 @Injectable()
-export class JwtStrategy extends PassportStrategy(Strategy) {
+export class JwtStrategy
+  extends PassportStrategy(Strategy)
+  implements OnModuleInit, OnModuleDestroy
+{
+  private readonly logger = new Logger(JwtStrategy.name);
   private readonly activeCache = new Map<
     number,
     { active: boolean; empresa_id: string | null; expiry: number }
   >();
-  private readonly CACHE_TTL_MS = 30000;
+  private CACHE_TTL_MS = 30000;
   private readonly CACHE_MAX_SIZE = 5000;
+  private subscriber: Redis | null = null;
 
   constructor(
-    config: ConfigService,
+    private readonly config: ConfigService,
     @Inject(I_USERS_REPOSITORY)
     private readonly usersRepository: IUsersRepository,
   ) {
     const publicKey = config.get<string>('JWT_PUBLIC_KEY');
     const secret = config.get<string>('JWT_SECRET');
+    const redisUrl = config.get<string>('REDIS_URL');
 
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
@@ -37,6 +51,58 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         : secret) as string,
       algorithms: publicKey ? ['RS256'] : ['HS256'],
     });
+
+    if (!redisUrl) {
+      this.logger.warn(
+        'REDIS_URL no detectado. Reduciendo TTL de cache a 5s para mitigar riesgos de seguridad.',
+      );
+      this.CACHE_TTL_MS = 5000;
+    }
+  }
+
+  async onModuleInit() {
+    const redisUrl = this.config.get<string>('REDIS_URL');
+    if (!redisUrl) return;
+
+    try {
+      this.subscriber = new Redis(redisUrl, {
+        maxRetriesPerRequest: null, // Recomendado para suscripciones
+      });
+
+      this.subscriber.on('error', (err) => {
+        this.logger.error(`Error en suscriptor Redis: ${err.message}`);
+      });
+
+      await this.subscriber.subscribe(
+        'user:deactivated',
+        'user:empresa-changed',
+      );
+
+      this.subscriber.on('message', (channel, message) => {
+        const userId = parseInt(message, 10);
+        if (!isNaN(userId)) {
+          const deleted = this.activeCache.delete(userId);
+          if (deleted) {
+            this.logger.debug(
+              `Cache invalidado reactivamente para usuario ${userId} (canal: ${channel})`,
+            );
+          }
+        }
+      });
+
+      this.logger.log(
+        'Suscrito a canales de invalidación de cache de usuarios',
+      );
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : String(error);
+      this.logger.error(`No se pudo iniciar la suscripción Redis: ${msg}`);
+    }
+  }
+
+  async onModuleDestroy() {
+    if (this.subscriber) {
+      await this.subscriber.quit();
+    }
   }
 
   // Este método corre si el token es válido. Endurecemos verificando que el usuario siga activo.
@@ -75,9 +141,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       !this.activeCache.has(payload.sub) &&
       this.activeCache.size >= this.CACHE_MAX_SIZE
     ) {
-      const oldestKey = this.activeCache.keys().next().value as
-        | number
-        | undefined;
+      const oldestKey = this.activeCache.keys().next().value;
       if (oldestKey !== undefined) {
         this.activeCache.delete(oldestKey);
       }

@@ -33,6 +33,26 @@ export class AuthSessionService {
     }
 
     if (stored.revoked_at) {
+      if (stored.replaced_by_hash) {
+        // Token fue revocado PORQUE se emitió uno nuevo (rotación).
+        // Si alguien intenta usar el token viejo, significa robo/reuso de sesión.
+        await this.refreshTokenService.revokeAllForUser(stored.user_id);
+
+        await this.audit.log('SECURITY_REFRESH_TOKEN_REUSE', {
+          actorUserId: stored.user_id,
+          targetUserId: stored.user_id,
+          ip: ctx?.ip,
+          userAgent: ctx?.userAgent,
+        });
+
+        this.metrics.incRefreshFailed('reuse_detected');
+        throw new UnauthorizedException({
+          message:
+            'Intento de reuso de sesión detectado. Todas las sesiones han sido revocadas por seguridad.',
+          code: 'AUTH_REFRESH_TOKEN_REUSE_DETECTED',
+        });
+      }
+
       this.metrics.incRefreshFailed('revoked');
       throw new UnauthorizedException({
         message: 'Refresh token revocado',

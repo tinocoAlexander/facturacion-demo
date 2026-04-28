@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Pool } from 'pg';
 import { InjectPool } from '../database/database.constants';
 import { AUDIT_QUERIES } from '../database/queries/audit.queries';
+import { getRequestId } from '../common/request-context/request-context';
 
 export type AuditContext = {
   actorUserId?: number | null;
@@ -41,13 +42,19 @@ export class AuditService {
 
   async log(action: string, ctx: AuditContext = {}) {
     try {
+      const requestId = getRequestId();
+      const metadata = {
+        ...ctx.metadata,
+        requestId: ctx.metadata?.requestId || requestId,
+      };
+
       await this.pool.query(AUDIT_QUERIES.INSERT, [
         ctx.actorUserId ?? null,
         action,
         ctx.targetUserId ?? null,
         ctx.ip ?? null,
         ctx.userAgent ?? null,
-        ctx.metadata ?? null,
+        metadata,
       ]);
     } catch (err) {
       // Audit nunca debería tumbar el request, pero sí dejar rastro en logs

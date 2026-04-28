@@ -89,6 +89,7 @@ export class CsdsUploadService {
         iv_key: encryptedKey.iv,
         password_cifrado: encryptedPassword.encryptedBuffer,
         iv_password: encryptedPassword.iv,
+        key_version: encryptedCer.keyVersion,
         fecha_inicio_vigencia: new Date(cert.validFrom),
         fecha_fin_vigencia: new Date(cert.validTo),
       };

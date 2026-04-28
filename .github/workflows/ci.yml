@@ -28,6 +28,10 @@ jobs:
         working-directory: facturacion
         run: npm run lint
 
+      - name: Check no-any (Strict Rule)
+        working-directory: facturacion
+        run: npx eslint "{src,apps,libs,test}/**/*.ts" --rule "@typescript-eslint/no-explicit-any: error"
+
   type-check:
     needs: lint
     runs-on: ubuntu-latest

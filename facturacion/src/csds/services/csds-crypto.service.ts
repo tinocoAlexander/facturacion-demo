@@ -9,60 +9,90 @@ import { ConfigService } from '@nestjs/config';
 export interface EncryptedData {
   encryptedBuffer: Buffer;
   iv: Buffer;
+  keyVersion: number;
 }
 
 @Injectable()
 export class CsdsCryptoService {
   private readonly logger = new Logger(CsdsCryptoService.name);
   private readonly algorithm = 'aes-256-gcm';
-  private readonly key: Buffer;
+  private readonly keys = new Map<number, Buffer>();
+  private readonly activeKeyVersion: number;
 
   constructor(private readonly configService: ConfigService) {
-    const hexKey = this.configService.get<string>('CSD_ENCRYPTION_KEY');
-    if (!hexKey || hexKey.length !== 64) {
-      throw new Error('CSD_ENCRYPTION_KEY must be a 64-character hex string');
+    // Cargar todas las versiones de llaves disponibles (v1, v2, v3...)
+    for (let i = 1; i <= 10; i++) {
+      const hexKey = this.configService.get<string>(`CSD_ENCRYPTION_KEY_v${i}`);
+      if (hexKey) {
+        if (hexKey.length !== 64) {
+          throw new Error(
+            `CSD_ENCRYPTION_KEY_v${i} must be a 64-character hex string`,
+          );
+        }
+        this.keys.set(i, Buffer.from(hexKey, 'hex'));
+      }
     }
-    this.key = Buffer.from(hexKey, 'hex');
+
+    if (this.keys.size === 0) {
+      throw new Error('At least CSD_ENCRYPTION_KEY_v1 must be provided');
+    }
+
+    // La versión activa es la más alta
+    this.activeKeyVersion = Math.max(...this.keys.keys());
+    this.logger.log(
+      `Criptografía CSD inicializada. Versión activa: v${this.activeKeyVersion}`,
+    );
   }
 
   encrypt(buffer: Buffer): EncryptedData {
-    const iv = crypto.randomBytes(12); // 96 bits — recomendado por NIST para GCM
-    const cipher = crypto.createCipheriv(this.algorithm, this.key, iv);
+    const iv = crypto.randomBytes(12);
+    const key = this.keys.get(this.activeKeyVersion);
 
+    if (!key) {
+      throw new InternalServerErrorException(
+        'Error interno: llave activa no encontrada',
+      );
+    }
+
+    const cipher = crypto.createCipheriv(this.algorithm, key, iv);
     const encrypted = Buffer.concat([cipher.update(buffer), cipher.final()]);
     const authTag = cipher.getAuthTag();
 
-    // In GCM mode, we need to store the auth tag. We will append it to the encrypted buffer.
-    // AES-GCM auth tag is always 16 bytes.
-    const finalEncryptedBuffer = Buffer.concat([encrypted, authTag]);
-
     return {
-      encryptedBuffer: finalEncryptedBuffer,
+      encryptedBuffer: Buffer.concat([encrypted, authTag]),
       iv,
+      keyVersion: this.activeKeyVersion,
     };
   }
 
-  decrypt(encryptedBufferWithAuthTag: Buffer, iv: Buffer): Buffer {
-    return this.decryptWithIv(encryptedBufferWithAuthTag, iv);
-  }
+  decrypt(
+    encryptedBufferWithAuthTag: Buffer,
+    iv: Buffer,
+    keyVersion: number,
+  ): Buffer {
+    const key = this.keys.get(keyVersion);
+    if (!key) {
+      this.logger.error(
+        `Intento de descifrado con versión de llave inexistente: v${keyVersion}`,
+      );
+      throw new InternalServerErrorException(
+        `No se puede descifrar el CSD: la versión de la llave v${keyVersion} no está configurada en el servidor.`,
+      );
+    }
 
-  private decryptWithIv(encryptedWithTag: Buffer, iv: Buffer): Buffer {
-    // Soporte para IVs legacy de 16 bytes y nuevos de 12 bytes
-    // El tamaño del IV está implícito en el campo iv almacenado en la DB
     const authTagLength = 16;
-    const encLen = encryptedWithTag.length - authTagLength;
-    const encrypted = encryptedWithTag.subarray(0, encLen);
-    const authTag = encryptedWithTag.subarray(encLen);
+    const encLen = encryptedBufferWithAuthTag.length - authTagLength;
+    const encrypted = encryptedBufferWithAuthTag.subarray(0, encLen);
+    const authTag = encryptedBufferWithAuthTag.subarray(encLen);
 
-    const decipher = crypto.createDecipheriv(this.algorithm, this.key, iv);
-    decipher.setAuthTag(authTag);
+    const decipher = crypto.createDecipheriv(this.algorithm, key, iv);
 
     try {
+      decipher.setAuthTag(authTag);
       return Buffer.concat([decipher.update(encrypted), decipher.final()]);
     } catch {
-      // NUNCA loguear el error real — puede contener info del plaintext
       throw new InternalServerErrorException(
-        'Error al descifrar el certificado. Verifica que CSD_ENCRYPTION_KEY sea correcta.',
+        'Error al descifrar el certificado. La llave de cifrado o el IV son incorrectos.',
       );
     }
   }

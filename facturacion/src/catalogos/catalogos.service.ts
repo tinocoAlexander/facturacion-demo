@@ -33,7 +33,10 @@ export class CatalogosService {
     if (this.redis) {
       try {
         const cached = await this.redis.get(key);
-        if (cached !== null) return JSON.parse(cached) as T;
+        if (cached !== null) {
+          const parsed: unknown = JSON.parse(cached);
+          return parsed as T;
+        }
       } catch (err) {
         this.logger.warn(
           `Cache read failed for ${key}`,

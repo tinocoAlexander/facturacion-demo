@@ -1,5 +1,7 @@
 # Sistema de Facturación NestJS
 
+[![Continuous Integration](https://github.com/tinocoAlexander/facturacion-demo/actions/workflows/ci.yml/badge.svg)](https://github.com/tinocoAlexander/facturacion-demo/actions/workflows/ci.yml)
+
 Un backend robusto en NestJS para la gestión de facturación electrónica, construido con un enfoque en seguridad, diseño multitenant (multi-empresa) y alta disponibilidad.
 
 ## Descripción del Sistema
@@ -9,63 +11,40 @@ Este sistema permite la ingesta, validación y gestión de tickets, integrando c
 La aplicación utiliza Arquitectura Hexagonal y Domain-Driven Design (DDD):
 - **Capa HTTP**: Controladores, Guards (JWT, Roles, Tenant) y Validaciones mediante Joi y `class-validator`.
 - **Capa de Dominio**: Servicios e interfaces con tipos inmutables TypeScript y lógica de negocio pura.
-- **Capa de Datos**: Repositorios inyectables que centralizan todo el acceso a la base de datos (se aplica una política estricta de cero sentencias SQL dentro de la capa de servicios).
+- **Capa de Datos**: Repositorios inyectables que centralizan todo el acceso a la base de datos.
 
-Dependencias principales:
-- **PostgreSQL 16**: Base de datos primaria.
-- **Redis 7**: Cache centralizado y sistema de throttling (es opcional; la app efectúa *fallback* si no existe).
+## Seguridad
+El sistema implementa medidas de endurecimiento de grado de producción:
+- **Detección de Reúso de Refresh Tokens**: Protección automática contra ataques de replay de sesión.
+- **Invalidación Reactiva (Redis Pub/Sub)**: Purgado instantáneo de sesiones al desactivar usuarios o cambiar empresas.
+- **Cálculo Server-Side de Montos**: Los totales de tickets se recalculan autoritativamente en el servidor para evitar fraude o errores de redondeo fiscal.
+- **Cifrado AES-256-GCM con Versionado**: Soporte para rotación de llaves maestras sin pérdida de datos históricos.
+- **RS256 en Producción**: Uso obligatorio de claves asimétricas para la firma de JWT.
 
-## Módulos y Responsabilidades
-- **AuthModule**: Gestión de JWT (con soporte de claves asimétricas RS256 o simétricas HS256) y protección contra fuerza bruta.
-- **EmpresasModule**: Administración del contexto de empresas y validación de entidades legales (RFCs).
-- **TicketsModule**: Ingesta masiva y listado de tickets usando validación de esquema, idempotencia concurrente y `unnest()` de Postgres.
-- **CatalogosModule**: Sincronización transparente de catálogos oficiales del SAT desde archivos seed de CSV.
-- **CsdsModule**: Gestión de sellos y certificados SAT cifrados en reposo (AES-256-GCM con rotación automática de IV).
+## Estrategia de Migraciones
+- **Docker / Docker Compose**: Se utiliza un `ENTRYPOINT` personalizado (`docker-entrypoint.sh`). Si `RUN_MIGRATIONS=true`, el contenedor esperará a la DB y ejecutará migraciones antes de iniciar la app.
+- **Producción**: Se recomienda usar Init Containers o Jobs dedicados.
+
+## Operaciones
+Para procedimientos detallados de mantenimiento y respuesta ante incidentes, consulte el [RUNBOOK.md](./docs/RUNBOOK.md). Incluye:
+- Procedimiento de rotación de llaves CSD.
+- Guía para desactivar cuentas comprometidas.
+- Identificación de ataques en logs de auditoría.
+
+## Decisiones de Arquitectura (ADR)
+- [005: Cálculo Server-Side de Montos](./docs/decisions/005-server-side-amount-calculation.md)
+- [006: Contexto con AsyncLocalStorage](./docs/decisions/006-async-local-storage-correlation.md)
+- [007: CSD Key Versioning](./docs/decisions/007-csd-key-versioning.md)
+- [Ver todas las decisiones...](./docs/decisions/)
 
 ## Setup de Desarrollo
-
-1. **Instalar dependencias**: 
-   ```bash
-   npm ci
-   ```
-2. **Copiar y ajustar configuración**: 
-   ```bash
-   cp .env.example .env
-   ```
-   (Asegúrate de llenar las claves de la base de datos y generar tu propia `CSD_ENCRYPTION_KEY`).
-3. **Levantar contenedores**: Es necesario que corras PostgreSQL localmente para desarrollar.
-4. **Correr migraciones de Base de Datos**: 
-   ```bash
-   npm run db:migrate
-   ```
-5. **Iniciar proyecto**: 
-   ```bash
-   npm run start:dev
-   ```
-
-## Variables de Entorno Críticas
-- `JWT_SECRET`: Requerida para desarrollos y firmas simétricas. Mínimo de 32 caracteres dictado por Joi.
-- `JWT_PRIVATE_KEY` / `JWT_PUBLIC_KEY`: Par RSA para firmas en producción (Recomendado).
-- `CSD_ENCRYPTION_KEY`: Master Key de 32 bytes (64 caracteres hex) generada criptográficamente para cifrar certificados. **CRÍTICO:** Nunca uses un valor predecible.
-- `DB_USER`, `DB_PASSWORD`, `DB_NAME`: Credenciales obligatorias.
-
-## Tests
-El proyecto cuenta con suites unitarias y un entorno de test `e2e` que emplea *TestContainers* (a través de CI o red local) validando los módulos sin usar *mocks*:
-```bash
-# Correr entorno End-to-End
-npm run test:e2e
-```
-
-## Decisiones de Arquitectura
-Por favor revisar el directorio de decisiones arquitectónicas (`docs/decisions/`) para entender en detalle los porqués de la implementación.
-- [001: UUID para IDs de empresas](./docs/decisions/001-uuid-for-empresas.md)
-- [002: JWT RS256 Fallback a HS256](./docs/decisions/002-jwt-rs256-fallback-hs256.md)
-- [003: Redis es Opcional (Fallback)](./docs/decisions/003-redis-optional-fallback.md)
-- [004: AES-256-GCM para CSD](./docs/decisions/004-aes-256-gcm-for-csd.md)
+1. `npm ci`
+2. `cp .env.example .env`
+3. `docker compose --profile dev up -d`
+4. `npm run start:dev`
 
 ## Roles del Sistema
-El sistema hace distinción estricta de identidades a través de roles controlados por el `RolesGuard`:
-- `admin`: Dueño o encargado total de la empresa (puede agregar usuarios, modificar settings y certificados).
-- `contador`: Nivel estadístico que accede a reportes y resúmenes tributarios sin capacidad mutacional de la ingesta de transacciones.
-- `cajero`: Ingesta masiva y creación de tickets, aislado sin posibilidad de visualizar estadísticas del negocio.
-- `user`: Rol de sistema base (sólo consultas perfil).
+- `admin`: Administración total de la empresa.
+- `contador`: Acceso a reportes y resúmenes.
+- `cajero`: Ingesta masiva y creación de tickets.
+- `user`: Rol de sistema base.

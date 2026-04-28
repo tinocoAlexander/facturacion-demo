@@ -1,6 +1,7 @@
 import { ConfigService } from '@nestjs/config';
 import { randomUUID } from 'crypto';
-import type { Request, Response } from 'express';
+import type { Request } from 'express';
+import { IncomingMessage } from 'http';
 
 type RequestWithUser = Request & {
   id?: string;
@@ -22,15 +23,19 @@ export function createPinoHttpOptions(config: ConfigService) {
 
   return {
     level,
-    genReqId: (req: RequestWithUser) => {
+    genReqId: (req: IncomingMessage) => {
+      const r = req as unknown as RequestWithUser;
       // El RequestIdMiddleware ya validó y seteó req.id (UUID seguro)
-      return req.id || randomUUID();
+      return r.id || randomUUID();
     },
-    customProps: (req: RequestWithUser) => ({
-      requestId: req.id,
-      userId: req.user?.id,
-      userRole: req.user?.role,
-    }),
+    customProps: (req: IncomingMessage) => {
+      const r = req as unknown as RequestWithUser;
+      return {
+        requestId: r.id,
+        userId: r.user?.id,
+        userRole: r.user?.role,
+      };
+    },
     redact: {
       paths: [
         'req.headers.authorization',
@@ -40,7 +45,7 @@ export function createPinoHttpOptions(config: ConfigService) {
       remove: true,
     },
     autoLogging: {
-      ignore: (req: Request) => req.url?.startsWith('/api/v1/health'),
+      ignore: (req: IncomingMessage) => !!req.url?.startsWith('/api/v1/health'),
     },
     transport: !isProd
       ? {

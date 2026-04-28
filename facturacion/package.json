@@ -14,7 +14,7 @@
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/main",
-    "lint": "eslint \"{src,apps,libs,test}/**/*.ts\"",
+    "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" && npm run type-check",
     "lint:fix": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
     "type-check": "tsc --noEmit",
     "test": "jest",
@@ -24,6 +24,7 @@
     "test:e2e": "jest --config ./test/jest-e2e.json"
   },
   "dependencies": {
+    "@golevelup/ts-jest": "^3.0.0",
     "@nestjs/axios": "^4.0.1",
     "@nestjs/common": "^11.1.19",
     "@nestjs/config": "^4.0.4",

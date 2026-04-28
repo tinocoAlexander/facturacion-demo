@@ -7,6 +7,8 @@ import { InjectPool } from '../database/database.constants';
 import { CLEANUP_QUERIES } from '../database/queries/cleanup.queries';
 import { AuditService } from '../audit/audit.service';
 
+import { requestContextStorage } from '../common/request-context/request-context';
+
 @Injectable()
 export class CleanupTask implements OnModuleInit {
   private readonly logger = new Logger(CleanupTask.name);
@@ -23,7 +25,12 @@ export class CleanupTask implements OnModuleInit {
       this.config.get<string>('CLEANUP_CRON') || '0 3 * * *';
 
     const job = new CronJob(cronExpression, () => {
-      void this.handleCleanup();
+      requestContextStorage.run(
+        { requestId: `job-cleanup-${Date.now()}` },
+        () => {
+          void this.handleCleanup();
+        },
+      );
     });
 
     this.schedulerRegistry.addCronJob('token-cleanup', job);

@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { ConfigService } from '@nestjs/config';
@@ -13,18 +13,26 @@ import { AuthCredentialsService } from './services/auth-credentials.service';
 import { AuthSessionService } from './services/auth-session.service';
 import { AuthProfileService } from './services/auth-profile.service';
 import { RefreshTokenService } from './services/refresh-token.service';
+import { UserCacheInvalidationService } from './services/user-cache-invalidation.service';
 import type { StringValue } from 'ms';
 
 @Module({
   imports: [
     PassportModule,
-    UsersModule,
-    EmpresasModule,
+    forwardRef(() => UsersModule),
+    forwardRef(() => EmpresasModule),
     JwtModule.registerAsync({
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => {
         const privateKey = configService.get<string>('JWT_PRIVATE_KEY');
         const secret = configService.get<string>('JWT_SECRET');
+        const nodeEnv = configService.get<string>('NODE_ENV');
+
+        if (nodeEnv === 'production' && !privateKey) {
+          throw new Error(
+            'JWT_PRIVATE_KEY es requerido en producción para usar RS256. HS256 (JWT_SECRET) está deshabilitado por seguridad en este entorno.',
+          );
+        }
 
         return {
           // Si hay privateKey usamos RS256, si no, fallback a HS256
@@ -46,9 +54,11 @@ import type { StringValue } from 'ms';
     AuthSessionService,
     AuthProfileService,
     RefreshTokenService,
+    UserCacheInvalidationService,
     JwtStrategy,
     LoginAttemptsService,
     RefreshTokensRepository,
   ],
+  exports: [UserCacheInvalidationService],
 })
 export class AuthModule {}

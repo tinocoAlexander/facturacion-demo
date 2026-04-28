@@ -18,6 +18,10 @@ import {
 } from './tickets.types';
 import { TICKET_QUERIES } from '../database/queries/tickets.queries';
 
+interface TicketRow extends Ticket {
+  _total: string;
+}
+
 @Injectable()
 export class TicketsRepository implements ITicketsRepository {
   private readonly logger = new Logger(TicketsRepository.name);
@@ -29,12 +33,12 @@ export class TicketsRepository implements ITicketsRepository {
     empresaId: string,
   ): Promise<TicketWithItems | null> {
     try {
-      const { rows } = await this.pool.query(
+      const { rows } = await this.pool.query<TicketWithItems>(
         TICKET_QUERIES.FIND_BY_ID_AND_EMPRESA,
         [id, empresaId],
       );
       if (rows.length === 0) return null;
-      return rows[0] as TicketWithItems;
+      return rows[0];
     } catch (error) {
       this.logger.error(
         'Error en findByIdAndEmpresa',
@@ -49,12 +53,12 @@ export class TicketsRepository implements ITicketsRepository {
     empresaId: string,
   ): Promise<Pick<Ticket, 'id' | 'estado'> | null> {
     try {
-      const { rows } = await this.pool.query(
+      const { rows } = await this.pool.query<Pick<Ticket, 'id' | 'estado'>>(
         TICKET_QUERIES.FIND_BY_FOLIO_EXTERNO_AND_EMPRESA,
         [folioExterno, empresaId],
       );
       if (rows.length === 0) return null;
-      return rows[0] as Pick<Ticket, 'id' | 'estado'>;
+      return rows[0];
     } catch (error) {
       this.logger.error(
         'Error en findByFolioExternoAndEmpresa',
@@ -124,16 +128,13 @@ export class TicketsRepository implements ITicketsRepository {
         fechaFin,
       });
 
-      const { rows } = await this.pool.query(text, values);
-      const total =
-        rows.length > 0
-          ? Number((rows[0] as Record<string, unknown>)._total)
-          : 0;
+      const { rows } = await this.pool.query<TicketRow>(text, values);
+      const total = rows.length > 0 ? Number(rows[0]._total) : 0;
 
       const data = rows.map((r) => {
-        const ticket = { ...(r as Record<string, unknown>) };
+        const ticket = { ...r } as Partial<TicketRow>;
         delete ticket._total;
-        return ticket as unknown as Ticket;
+        return ticket as Ticket;
       });
 
       return { data, total };

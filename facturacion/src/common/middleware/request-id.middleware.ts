@@ -1,6 +1,7 @@
 import { Injectable, NestMiddleware } from '@nestjs/common';
 import { Request, Response, NextFunction } from 'express';
 import { randomUUID } from 'crypto';
+import { requestContextStorage } from '../request-context/request-context';
 
 @Injectable()
 export class RequestIdMiddleware implements NestMiddleware {
@@ -24,6 +25,9 @@ export class RequestIdMiddleware implements NestMiddleware {
     // Aseguramos que el cliente reciba el ID en el header de respuesta
     res.setHeader('X-Request-Id', requestId);
 
-    next();
+    // Propagar el contexto usando AsyncLocalStorage
+    requestContextStorage.run({ requestId }, () => {
+      next();
+    });
   }
 }

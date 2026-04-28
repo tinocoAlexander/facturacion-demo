@@ -78,7 +78,7 @@ export class TenantGuard implements CanActivate {
 
     // LRU: si lleno, eliminar el más antiguo
     if (this.cache.size >= this.CACHE_MAX) {
-      const oldest = this.cache.keys().next().value as string | undefined;
+      const oldest = this.cache.keys().next().value;
       if (oldest) this.cache.delete(oldest);
     }
 

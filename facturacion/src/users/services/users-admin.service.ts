@@ -7,6 +7,7 @@ import { I_USERS_REPOSITORY } from '../interfaces/users-repository.interface';
 import { mapToResponseUserDto } from '../users.mapper';
 import { httpError } from '../../common/errors/http-error';
 import { BCRYPT_ROUNDS } from '../../common/constants/crypto.constants';
+import { UserCacheInvalidationService } from '../../auth/services/user-cache-invalidation.service';
 
 @Injectable()
 export class UsersAdminService {
@@ -16,6 +17,7 @@ export class UsersAdminService {
     @Inject(I_USERS_REPOSITORY)
     private readonly usersRepository: IUsersRepository,
     private readonly audit: AuditService,
+    private readonly cacheInvalidationService: UserCacheInvalidationService,
   ) {}
 
   async createUser(
@@ -78,6 +80,9 @@ export class UsersAdminService {
         'USERS_NOT_FOUND',
         'Usuario no encontrado',
       );
+
+    // Invalidad cache reactivamente
+    await this.cacheInvalidationService.invalidateUser(targetUserId);
 
     await this.audit.log('ADMIN_SET_ACTIVE', {
       actorUserId: adminId,

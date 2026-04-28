@@ -633,7 +633,7 @@ describe('API (e2e)', () => {
         .get(api('/catalogos/regimen-fiscal?tipo=fisica'))
         .expect(200);
       expect(Array.isArray(res.body)).toBe(true);
-      res.body.forEach((r: any) => {
+      res.body.forEach((r: { aplica_fisica: boolean }) => {
         expect(r.aplica_fisica).toBe(true);
       });
     });
@@ -862,8 +862,10 @@ describe('API (e2e)', () => {
         .set('Authorization', `Bearer ${cajeroToken}`)
         .expect(200);
 
-      const ticketsA = res.body.data;
-      const foundB = ticketsA.find((t: any) => t.folio_externo === folioB);
+      const ticketsA = res.body.data as { folio_externo: string }[];
+      const foundB = ticketsA.find(
+        (t: { folio_externo: string }) => t.folio_externo === folioB,
+      );
       expect(foundB).toBeUndefined();
     });
 

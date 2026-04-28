@@ -26,7 +26,7 @@ export class CreateEmpresaDto {
   @Transform(({ value }): string =>
     typeof value === 'string' ? value.toUpperCase().trim() : (value as string),
   )
-  rfc: string;
+  rfc!: string;
 
   @ApiProperty({ example: 'Mi Empresa S.A.' })
   @IsString()
@@ -36,7 +36,7 @@ export class CreateEmpresaDto {
   @Transform(({ value }): string =>
     typeof value === 'string' ? value.trim() : (value as string),
   )
-  nombre_comercial: string;
+  nombre_comercial!: string;
 
   @ApiProperty({ example: 'MI EMPRESA SA DE CV' })
   @IsString()
@@ -46,7 +46,7 @@ export class CreateEmpresaDto {
   @Transform(({ value }): string =>
     typeof value === 'string' ? value.trim() : (value as string),
   )
-  razon_social: string;
+  razon_social!: string;
 
   @ApiProperty({
     description: 'Régimen Fiscal (Catálogo SAT CFDI 4.0)',
@@ -83,14 +83,14 @@ export class CreateEmpresaDto {
         'Régimen fiscal inválido. Debe ser una clave del catálogo SAT CFDI 4.0',
     },
   )
-  regimen_fiscal: string;
+  regimen_fiscal!: string;
 
   @ApiProperty({ example: '06600' })
   @IsString()
   @Matches(/^\d{5}$/, {
     message: 'Código postal debe tener exactamente 5 dígitos',
   })
-  codigo_postal: string;
+  codigo_postal!: string;
 
   @ApiProperty({ required: false, example: 'contacto@empresa.com' })
   @IsEmail()

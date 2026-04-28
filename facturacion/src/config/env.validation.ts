@@ -28,9 +28,17 @@ export const envValidationSchema = Joi.object({
   DB_STATEMENT_TIMEOUT_MS: Joi.number().integer().min(1000).default(15000),
 
   // JWT
-  JWT_SECRET: Joi.string().min(32).required().messages({
-    'string.min':
-      'JWT_SECRET debe tener al menos 32 caracteres para ser seguro',
+  JWT_SECRET: Joi.string().when('NODE_ENV', {
+    is: 'production',
+    then: Joi.string().when('JWT_PRIVATE_KEY', {
+      is: Joi.string().exist(),
+      then: Joi.forbidden().messages({
+        'any.unknown':
+          'JWT_SECRET no debe estar presente en producción cuando se usa RS256 (JWT_PRIVATE_KEY). Elimínalo del .env de producción.',
+      }),
+      otherwise: Joi.string().min(32).required(),
+    }),
+    otherwise: Joi.string().min(32).required(),
   }),
   JWT_PRIVATE_KEY: Joi.string().when('NODE_ENV', {
     is: 'production',
@@ -118,16 +126,7 @@ export const envValidationSchema = Joi.object({
   CATALOGOS_SYNC_CRON: Joi.string().default('0 2 * * 0'),
 
   // CSD Encryption
-  CSD_ENCRYPTION_KEY: Joi.string()
-    .hex()
-    .length(64)
-    .required()
-    .messages({
-      'any.required':
-        'CSD_ENCRYPTION_KEY es requerida. Generar con: ' +
-        "node -e \"console.log(require('crypto').randomBytes(32).toString('hex'))\"",
-      'string.length':
-        'CSD_ENCRYPTION_KEY debe tener exactamente 64 caracteres hex (32 bytes)',
-      'string.hex': 'CSD_ENCRYPTION_KEY debe ser una cadena hexadecimal válida',
-    }),
+  CSD_ENCRYPTION_KEY_v1: Joi.string().hex().length(64).required(),
+  CSD_ENCRYPTION_KEY_v2: Joi.string().hex().length(64).optional(),
+  CSD_ENCRYPTION_KEY_v3: Joi.string().hex().length(64).optional(),
 });

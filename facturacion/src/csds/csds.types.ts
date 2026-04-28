@@ -8,6 +8,7 @@ export interface Csd {
   iv_cer: Buffer;
   iv_key: Buffer;
   iv_password: Buffer;
+  key_version: number;
   fecha_inicio_vigencia: Date;
   fecha_fin_vigencia: Date;
   is_active: boolean;

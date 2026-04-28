@@ -10,6 +10,7 @@ import { ConfigService } from '@nestjs/config';
 import { PinoLogger } from 'nestjs-pino';
 import type { Request } from 'express';
 import { defaultErrorCodeForStatus } from '../errors/status-codes';
+import { getRequestId } from '../request-context/request-context';
 
 type RequestWithUser = Request & {
   id?: string;
@@ -36,8 +37,8 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const { httpAdapter } = this.httpAdapterHost;
     const ctx = host.switchToHttp();
     const request = ctx.getRequest<RequestWithUser>();
-    const requestId = request.id;
-    const userId = request.user?.id;
+    const requestId = request?.id || getRequestId();
+    const userId = request?.user?.id;
 
     const isProduction = this.configService.get('NODE_ENV') === 'production';
     const timestamp = new Date().toISOString();
@@ -49,10 +50,21 @@ export class AllExceptionsFilter implements ExceptionFilter {
       statusCode = exception.getStatus();
       const response = exception.getResponse();
 
-      const basePayload: Record<string, unknown> =
-        typeof response === 'string'
-          ? { statusCode, message: response }
-          : (response as Record<string, unknown>);
+      let basePayload: {
+        message?: string | string[];
+        code?: string;
+        [key: string]: unknown;
+      };
+
+      if (typeof response === 'string') {
+        basePayload = { message: response };
+      } else {
+        basePayload = response as {
+          message?: string | string[];
+          code?: string;
+          [key: string]: unknown;
+        };
+      }
 
       payload = {
         statusCode,

@@ -20,27 +20,33 @@ export class IngestTicketDto {
   @IsString()
   @MaxLength(100)
   @IsNotEmpty()
-  folio_externo: string;
+  folio_externo!: string;
 
   @IsISO8601()
   @IsNotEmpty()
-  fecha_venta: string;
+  fecha_venta!: string;
 
+  // NOTA: Calculado por el servidor (se ignora el valor enviado por el cliente)
   @IsNumber()
   @Min(0)
-  subtotal: number;
+  @IsOptional()
+  subtotal?: number;
 
+  // NOTA: Calculado por el servidor (se ignora el valor enviado por el cliente)
   @IsNumber()
   @Min(0)
-  total_iva: number;
+  @IsOptional()
+  total_iva?: number;
 
+  // NOTA: Calculado por el servidor (se ignora el valor enviado por el cliente)
   @IsNumber()
   @Min(0.01)
-  total: number;
+  @IsOptional()
+  total?: number;
 
   @IsString()
   @Length(2, 2)
-  forma_pago: string;
+  forma_pago!: string;
 
   @IsString()
   @Length(3, 3)
@@ -59,12 +65,12 @@ export class IngestTicketDto {
 
   @IsObject()
   @IsOptional()
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 
   @IsArray()
   @ArrayMinSize(1)
   @ArrayMaxSize(500)
   @ValidateNested({ each: true })
   @Type(() => IngestTicketItemDto)
-  items: IngestTicketItemDto[];
+  items!: IngestTicketItemDto[];
 }

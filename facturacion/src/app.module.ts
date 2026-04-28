@@ -1,4 +1,10 @@
-import { BadRequestException, Module, ValidationPipe } from '@nestjs/common';
+import {
+  BadRequestException,
+  Module,
+  ValidationPipe,
+  Logger,
+} from '@nestjs/common';
+import { AppLogger } from './common/logging/app-logger.service';
 import { ConfigModule } from '@nestjs/config';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR, APP_PIPE } from '@nestjs/core';
@@ -110,6 +116,11 @@ import type { ValidationError } from 'class-validator';
     {
       provide: APP_INTERCEPTOR,
       useClass: MetricsInterceptor,
+    },
+    AppLogger,
+    {
+      provide: Logger,
+      useClass: AppLogger,
     },
   ],
 })

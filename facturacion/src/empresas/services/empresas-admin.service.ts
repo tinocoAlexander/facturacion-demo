@@ -5,6 +5,7 @@ import { I_EMPRESAS_REPOSITORY } from '../interfaces/empresas-repository.interfa
 import type { IEmpresasRepository } from '../interfaces/empresas-repository.interface';
 import { mapToResponseEmpresaDto } from '../empresas.mapper';
 import { httpError } from '../../common/errors/http-error';
+import { UserCacheInvalidationService } from '../../auth/services/user-cache-invalidation.service';
 
 @Injectable()
 export class EmpresasAdminService {
@@ -12,6 +13,7 @@ export class EmpresasAdminService {
     @Inject(I_EMPRESAS_REPOSITORY)
     private readonly repo: IEmpresasRepository,
     private readonly audit: AuditService,
+    private readonly cacheInvalidationService: UserCacheInvalidationService,
   ) {}
 
   async crear(
@@ -110,6 +112,9 @@ export class EmpresasAdminService {
     }
 
     await this.repo.assignUser(empresaId, userId);
+
+    // Invalidad cache reactivamente
+    await this.cacheInvalidationService.invalidateEmpresaChange(userId);
 
     await this.audit.log('ADMIN_ASSIGN_USER_EMPRESA', {
       actorUserId: adminId,

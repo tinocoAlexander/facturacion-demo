@@ -80,26 +80,30 @@ export class TicketsIngestService {
       pos++;
     }
 
-    // Paso 3: Sanity check matemático
+    // Paso 3: Calcular montos server-side (ignorando los del cliente)
+    let calcSubtotal = 0;
+    let calcTotalIva = 0;
+
     for (const item of dto.items) {
-      const expectedItemSubtotal =
-        item.cantidad * item.precio_unitario - item.descuento;
-      if (Math.abs(item.subtotal - expectedItemSubtotal) > 0.02) {
-        throw httpError(
-          HttpStatus.UNPROCESSABLE_ENTITY,
-          'TICKET_MONTOS_INCOHERENTES',
-          `El subtotal del item ${item.posicion} no coincide con cantidad*precio-descuento (tolerancia excedida)`,
-        );
-      }
+      // Usar Math.round(valor * 100) / 100 para evitar imprecisiones de coma flotante
+      const itemSubtotal =
+        Math.round(
+          (item.cantidad * item.precio_unitario - (item.descuento || 0)) * 100,
+        ) / 100;
+      const itemIva = Math.round(itemSubtotal * item.tasa_iva * 100) / 100;
+
+      // Sobreescribir con valores autoritativos
+      item.subtotal = itemSubtotal;
+      item.importe_iva = itemIva;
+
+      calcSubtotal += itemSubtotal;
+      calcTotalIva += itemIva;
     }
 
-    if (Math.abs(dto.total - (dto.subtotal + dto.total_iva)) > 0.05) {
-      throw httpError(
-        HttpStatus.UNPROCESSABLE_ENTITY,
-        'TICKET_MONTOS_INCOHERENTES',
-        'El total del ticket no coincide con la suma de subtotal + total_iva (tolerancia excedida)',
-      );
-    }
+    // Sobreescribir totales del ticket
+    dto.subtotal = Math.round(calcSubtotal * 100) / 100;
+    dto.total_iva = Math.round(calcTotalIva * 100) / 100;
+    dto.total = Math.round((dto.subtotal + dto.total_iva) * 100) / 100;
 
     // Paso 4: Guardar en transacción
     try {
@@ -125,6 +129,8 @@ export class TicketsIngestService {
           descuento: i.descuento || 0,
           objeto_imp: i.objeto_imp || '02',
           posicion: i.posicion as number,
+          subtotal: i.subtotal as number,
+          importe_iva: i.importe_iva as number,
         })),
       );
 
@@ -142,9 +148,7 @@ export class TicketsIngestService {
       return savedTicket;
     } catch (error: unknown) {
       // Manejo de condición de carrera para idempotencia (UNIQUE constraint violation)
-      const err = error as { code?: string; constraint?: string };
-      // 23505 es el código de violación de índice único en Postgres
-      if (err.code === '23505') {
+      if (this.isPostgresError(error) && error.code === '23505') {
         this.logger.log(
           `Condición de carrera detectada. Ticket con folio ${dto.folio_externo} insertado concurrentemente.`,
         );
@@ -162,5 +166,17 @@ export class TicketsIngestService {
       }
       throw error;
     }
+  }
+
+  private isPostgresError(
+    err: unknown,
+  ): err is { code: string; constraint?: string } {
+    const maybeError = err as Record<string, unknown>;
+    return (
+      typeof err === 'object' &&
+      err !== null &&
+      'code' in err &&
+      typeof maybeError.code === 'string'
+    );
   }
 }

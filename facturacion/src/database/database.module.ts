@@ -5,6 +5,7 @@ import { MigrationRunner } from './migration.runner';
 import { DATABASE_POOL } from './database.constants';
 import { DatabaseShutdown } from './database.shutdown';
 import { MetricsService } from '../metrics/metrics.service';
+import { DbMetricsTask } from './db-metrics.task';
 
 @Global()
 @Module({
@@ -12,7 +13,7 @@ import { MetricsService } from '../metrics/metrics.service';
     {
       provide: DATABASE_POOL,
       inject: [ConfigService, MetricsService],
-      useFactory: (configService: ConfigService, metrics: MetricsService) => {
+      useFactory: (configService: ConfigService) => {
         const statementTimeoutMs =
           configService.get<number>('DB_STATEMENT_TIMEOUT_MS') ?? 15000;
         const maxConnections = configService.get<number>('DB_POOL_MAX') ?? 20;
@@ -34,20 +35,12 @@ import { MetricsService } from '../metrics/metrics.service';
           console.error('Pool error:', err.message);
         });
 
-        // Actualizar métricas del pool cada 30 segundos
-        setInterval(() => {
-          metrics.setDbPoolMetrics({
-            total: maxConnections,
-            idle: pool.idleCount,
-            waiting: pool.waitingCount,
-          });
-        }, 30000).unref();
-
         return pool;
       },
     },
     MigrationRunner,
     DatabaseShutdown,
+    DbMetricsTask,
   ],
   exports: [DATABASE_POOL, MigrationRunner],
 })
