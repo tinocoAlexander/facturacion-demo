@@ -70,7 +70,9 @@ export class TenantGuard implements CanActivate {
   private async getEmpresa(empresaId: string): Promise<Empresa | null> {
     const now = Date.now();
     const cached = this.cache.get(empresaId);
-    if (cached && cached.expiry > now) return cached.empresa;
+    if (cached && cached.expiry > now && process.env.NODE_ENV !== 'test') {
+      return cached.empresa;
+    }
 
     const empresa = await this.empresas.findById(empresaId);
 

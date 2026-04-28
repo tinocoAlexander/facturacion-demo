@@ -29,10 +29,10 @@ export class TicketsRepository implements ITicketsRepository {
     empresaId: string,
   ): Promise<TicketWithItems | null> {
     try {
-      const { rows } = await this.pool.query(TICKET_QUERIES.FIND_BY_ID_AND_EMPRESA, [
-        id,
-        empresaId,
-      ]);
+      const { rows } = await this.pool.query(
+        TICKET_QUERIES.FIND_BY_ID_AND_EMPRESA,
+        [id, empresaId],
+      );
       if (rows.length === 0) return null;
       return rows[0] as TicketWithItems;
     } catch (error) {
@@ -73,9 +73,9 @@ export class TicketsRepository implements ITicketsRepository {
     fechaFin?: Date;
     limit: number;
     offset: number;
-  }): { text: string; values: unknown[] } {
+  }): { text: string; values: (string | number | Date)[] } {
     const conditions: string[] = ['empresa_id = $1'];
-    const values: unknown[] = [params.empresaId];
+    const values: (string | number | Date)[] = [params.empresaId];
     let idx = 2;
 
     if (params.estado) {
@@ -173,10 +173,10 @@ export class TicketsRepository implements ITicketsRepository {
     client: PoolClient,
   ): Promise<TicketForGlobal[]> {
     try {
-      const { rows } = await client.query(TICKET_QUERIES.GET_PENDING_FOR_GLOBAL, [
-        empresaId,
-        fecha,
-      ]);
+      const { rows } = await client.query(
+        TICKET_QUERIES.GET_PENDING_FOR_GLOBAL,
+        [empresaId, fecha],
+      );
       return rows as TicketForGlobal[];
     } catch (error) {
       this.logger.error(
@@ -213,7 +213,11 @@ export class TicketsRepository implements ITicketsRepository {
     client: PoolClient,
   ): Promise<void> {
     try {
-      await client.query(TICKET_QUERIES.UPDATE_MANY_ESTADO, [estado, ids, empresaId]);
+      await client.query(TICKET_QUERIES.UPDATE_MANY_ESTADO, [
+        estado,
+        ids,
+        empresaId,
+      ]);
     } catch (error) {
       this.logger.error('Error en updateManyEstado', (error as Error).message);
       throw new InternalServerErrorException(

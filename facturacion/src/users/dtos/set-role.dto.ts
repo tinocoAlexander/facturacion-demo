@@ -9,6 +9,8 @@ export class SetRoleDto {
   })
   @IsString()
   @IsNotEmpty({ message: 'Rol es requerido' })
-  @IsIn(['user', 'admin', 'cajero', 'contador'], { message: 'El rol debe ser: user, admin, cajero o contador' })
+  @IsIn(['user', 'admin', 'cajero', 'contador'], {
+    message: 'El rol debe ser: user, admin, cajero o contador',
+  })
   role!: string;
 }

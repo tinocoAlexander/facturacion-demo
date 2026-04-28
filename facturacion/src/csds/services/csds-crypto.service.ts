@@ -1,4 +1,8 @@
-import { Injectable, Logger, InternalServerErrorException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import * as crypto from 'crypto';
 import { ConfigService } from '@nestjs/config';
 
@@ -49,16 +53,16 @@ export class CsdsCryptoService {
     const encLen = encryptedWithTag.length - authTagLength;
     const encrypted = encryptedWithTag.subarray(0, encLen);
     const authTag = encryptedWithTag.subarray(encLen);
-    
+
     const decipher = crypto.createDecipheriv(this.algorithm, this.key, iv);
     decipher.setAuthTag(authTag);
-    
+
     try {
       return Buffer.concat([decipher.update(encrypted), decipher.final()]);
-    } catch (err) {
+    } catch {
       // NUNCA loguear el error real — puede contener info del plaintext
       throw new InternalServerErrorException(
-        'Error al descifrar el certificado. Verifica que CSD_ENCRYPTION_KEY sea correcta.'
+        'Error al descifrar el certificado. Verifica que CSD_ENCRYPTION_KEY sea correcta.',
       );
     }
   }

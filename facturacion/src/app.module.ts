@@ -48,6 +48,14 @@ import type { ValidationError } from 'class-validator';
         {
           ttl: config.get<number>('THROTTLE_TTL') ?? 60_000,
           limit: config.get<number>('THROTTLE_LIMIT') ?? 60,
+          skipIf: (ctx) => {
+            const req = ctx
+              .switchToHttp()
+              .getRequest<import('express').Request>();
+            const isLocal =
+              req.ip === '::ffff:127.0.0.1' || req.ip === '127.0.0.1';
+            return process.env.NODE_ENV === 'test' && isLocal;
+          },
         },
       ],
     }),

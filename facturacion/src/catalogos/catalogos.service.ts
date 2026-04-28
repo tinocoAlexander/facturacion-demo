@@ -1,4 +1,10 @@
-import { Injectable, HttpStatus, Inject, Optional, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  HttpStatus,
+  Inject,
+  Optional,
+  Logger,
+} from '@nestjs/common';
 import { Redis } from 'ioredis';
 import { I_CATALOGOS_REPOSITORY } from './interfaces/catalogos-repository.interface';
 import type { ICatalogosRepository } from './interfaces/catalogos-repository.interface';
@@ -29,7 +35,10 @@ export class CatalogosService {
         const cached = await this.redis.get(key);
         if (cached !== null) return JSON.parse(cached) as T;
       } catch (err) {
-        this.logger.warn(`Cache read failed for ${key}`, (err as Error).message);
+        this.logger.warn(
+          `Cache read failed for ${key}`,
+          (err as Error).message,
+        );
       }
     }
 
@@ -40,7 +49,10 @@ export class CatalogosService {
         // Cachear incluso arrays vacíos para prevenir cache stampede
         await this.redis.setex(key, ttl, JSON.stringify(data));
       } catch (err) {
-        this.logger.warn(`Cache write failed for ${key}`, (err as Error).message);
+        this.logger.warn(
+          `Cache write failed for ${key}`,
+          (err as Error).message,
+        );
       }
     }
 

@@ -1,9 +1,4 @@
-import {
-  Injectable,
-  Logger,
-  OnModuleInit,
-  Inject,
-} from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit, Inject } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { CronJob } from 'cron';
@@ -11,7 +6,16 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as csv from 'csv-parser';
 import { I_CATALOGOS_REPOSITORY } from '../interfaces/catalogos-repository.interface';
-import type { ICatalogosRepository } from '../interfaces/catalogos-repository.interface';
+import type {
+  ICatalogosRepository,
+  ClaveProdServRow,
+  ClaveUnidadRow,
+  UsoCfdiRow,
+  FormaPagoRow,
+  RegimenFiscalRow,
+  MetodoPagoRow,
+  TipoRelacionRow,
+} from '../interfaces/catalogos-repository.interface';
 
 @Injectable()
 export class CatalogosSyncService implements OnModuleInit {
@@ -24,36 +28,35 @@ export class CatalogosSyncService implements OnModuleInit {
   ) {}
 
   onModuleInit() {
-    const cronExpression = this.config.get<string>('CATALOGOS_SYNC_CRON') ?? '0 2 * * 0';
+    const cronExpression =
+      this.config.get<string>('CATALOGOS_SYNC_CRON') ?? '0 2 * * 0';
     const job = new CronJob(cronExpression, () => void this.syncAll());
     this.schedulerRegistry.addCronJob('catalogos-sync', job);
     job.start();
     this.logger.log(`Sync de catálogos programado: ${cronExpression}`);
   }
 
-
-
   async syncAll() {
     try {
-      await this.loadFromCSV('c_ClaveProdServ', (data) =>
+      await this.loadFromCSV<ClaveProdServRow>('c_ClaveProdServ', (data) =>
         this.repo.upsertBatchClaveProdServ(data),
       );
-      await this.loadFromCSV('c_ClaveUnidad', (data) =>
+      await this.loadFromCSV<ClaveUnidadRow>('c_ClaveUnidad', (data) =>
         this.repo.upsertBatchClaveUnidad(data),
       );
-      await this.loadFromCSV('c_UsoCFDI', (data) =>
+      await this.loadFromCSV<UsoCfdiRow>('c_UsoCFDI', (data) =>
         this.repo.upsertBatchUsoCfdi(data),
       );
-      await this.loadFromCSV('c_FormaPago', (data) =>
+      await this.loadFromCSV<FormaPagoRow>('c_FormaPago', (data) =>
         this.repo.upsertBatchFormaPago(data),
       );
-      await this.loadFromCSV('c_RegimenFiscal', (data) =>
+      await this.loadFromCSV<RegimenFiscalRow>('c_RegimenFiscal', (data) =>
         this.repo.upsertBatchRegimenFiscal(data),
       );
-      await this.loadFromCSV('c_MetodoPago', (data) =>
+      await this.loadFromCSV<MetodoPagoRow>('c_MetodoPago', (data) =>
         this.repo.upsertBatchMetodoPago(data),
       );
-      await this.loadFromCSV('c_TipoRelacion', (data) =>
+      await this.loadFromCSV<TipoRelacionRow>('c_TipoRelacion', (data) =>
         this.repo.upsertBatchTipoRelacion(data),
       );
       this.logger.log('Sincronización de catálogos finalizada.');
@@ -65,9 +68,9 @@ export class CatalogosSyncService implements OnModuleInit {
     }
   }
 
-  private async loadFromCSV(
+  private async loadFromCSV<T = Record<string, string>>(
     fileName: string,
-    upsertFn: (data: Record<string, string>[]) => Promise<void>,
+    upsertFn: (data: T[]) => Promise<void>,
   ) {
     const filePath = path.join(
       process.cwd(),
@@ -83,7 +86,7 @@ export class CatalogosSyncService implements OnModuleInit {
     }
 
     this.logger.log(`Cargando ${fileName}...`);
-    const results: Record<string, string>[] = [];
+    const results: T[] = [];
 
     // Cast para evitar errores de linter con csv-parser sin tipos explícitos en el entorno
     const parser = (csv as unknown as () => NodeJS.ReadWriteStream)();
@@ -91,7 +94,7 @@ export class CatalogosSyncService implements OnModuleInit {
     return new Promise<void>((resolve, reject) => {
       fs.createReadStream(filePath)
         .pipe(parser)
-        .on('data', (data: Record<string, string>) => results.push(data))
+        .on('data', (data: T) => results.push(data))
         .on('end', () => {
           void (async () => {
             try {

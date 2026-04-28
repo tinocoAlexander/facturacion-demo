@@ -143,10 +143,8 @@ export class TicketsIngestService {
     } catch (error: unknown) {
       // Manejo de condición de carrera para idempotencia (UNIQUE constraint violation)
       const err = error as { code?: string; constraint?: string };
-      if (
-        err.code === '23505' &&
-        err.constraint === 'idx_tickets_folio_externo'
-      ) {
+      // 23505 es el código de violación de índice único en Postgres
+      if (err.code === '23505') {
         this.logger.log(
           `Condición de carrera detectada. Ticket con folio ${dto.folio_externo} insertado concurrentemente.`,
         );

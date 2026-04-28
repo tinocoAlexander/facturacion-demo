@@ -10,8 +10,11 @@ export class ResponseUserDto {
   @ApiProperty({ example: 'Alex N' })
   fullName!: string;
 
-  @ApiProperty({ enum: ['user', 'admin'], example: 'user' })
-  role!: 'user' | 'admin';
+  @ApiProperty({
+    enum: ['user', 'admin', 'cajero', 'contador'],
+    example: 'user',
+  })
+  role!: 'user' | 'admin' | 'cajero' | 'contador';
 
   @ApiProperty({ example: true })
   isActive!: boolean;

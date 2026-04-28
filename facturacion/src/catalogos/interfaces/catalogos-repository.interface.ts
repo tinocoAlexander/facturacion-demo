@@ -8,6 +8,47 @@ import {
   TipoRelacion,
 } from '../catalogos.types';
 
+export interface ClaveProdServRow {
+  c_ClaveProdServ: string;
+  Descripción: string;
+}
+
+export interface ClaveUnidadRow {
+  c_ClaveUnidad: string;
+  Nombre: string;
+  Descripción: string;
+  Nota: string;
+}
+
+export interface UsoCfdiRow {
+  c_UsoCFDI: string;
+  Descripción: string;
+  Física: string;
+  Moral: string;
+}
+
+export interface FormaPagoRow {
+  c_FormaPago: string;
+  Descripción: string;
+}
+
+export interface RegimenFiscalRow {
+  c_RegimenFiscal: string;
+  Descripción: string;
+  Física: string;
+  Moral: string;
+}
+
+export interface MetodoPagoRow {
+  c_MetodoPago: string;
+  Descripción: string;
+}
+
+export interface TipoRelacionRow {
+  c_TipoRelacion: string;
+  Descripción: string;
+}
+
 export const I_CATALOGOS_REPOSITORY = 'I_CATALOGOS_REPOSITORY';
 
 export interface ICatalogosRepository {
@@ -41,11 +82,11 @@ export interface ICatalogosRepository {
   validateManyClavesProdServ(claves: string[]): Promise<string[]>;
 
   // Sincronización (batch insert ignoring conflicts)
-  upsertBatchClaveProdServ(data: any[]): Promise<void>;
-  upsertBatchClaveUnidad(data: any[]): Promise<void>;
-  upsertBatchUsoCfdi(data: any[]): Promise<void>;
-  upsertBatchFormaPago(data: any[]): Promise<void>;
-  upsertBatchRegimenFiscal(data: any[]): Promise<void>;
-  upsertBatchMetodoPago(data: any[]): Promise<void>;
-  upsertBatchTipoRelacion(data: any[]): Promise<void>;
+  upsertBatchClaveProdServ(data: ClaveProdServRow[]): Promise<void>;
+  upsertBatchClaveUnidad(data: ClaveUnidadRow[]): Promise<void>;
+  upsertBatchUsoCfdi(data: UsoCfdiRow[]): Promise<void>;
+  upsertBatchFormaPago(data: FormaPagoRow[]): Promise<void>;
+  upsertBatchRegimenFiscal(data: RegimenFiscalRow[]): Promise<void>;
+  upsertBatchMetodoPago(data: MetodoPagoRow[]): Promise<void>;
+  upsertBatchTipoRelacion(data: TipoRelacionRow[]): Promise<void>;
 }

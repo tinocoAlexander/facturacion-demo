@@ -6,7 +6,16 @@ import {
 import { Pool } from 'pg';
 import { InjectPool } from '../database/database.constants';
 import { CATALOGOS_QUERIES } from '../database/queries/catalogos.queries';
-import { ICatalogosRepository } from './interfaces/catalogos-repository.interface';
+import {
+  ICatalogosRepository,
+  ClaveProdServRow,
+  ClaveUnidadRow,
+  UsoCfdiRow,
+  FormaPagoRow,
+  RegimenFiscalRow,
+  MetodoPagoRow,
+  TipoRelacionRow,
+} from './interfaces/catalogos-repository.interface';
 import {
   ClaveProdServ,
   ClaveUnidad,
@@ -259,9 +268,7 @@ export class CatalogosRepository implements ICatalogosRepository {
     }
   }
 
-  async upsertBatchClaveProdServ(
-    data: Record<string, string>[],
-  ): Promise<void> {
+  async upsertBatchClaveProdServ(data: ClaveProdServRow[]): Promise<void> {
     await this.executeBatchUpsert(
       CATALOGOS_QUERIES.UPSERT_CLAVE_PROD_SERV,
       data,
@@ -269,7 +276,7 @@ export class CatalogosRepository implements ICatalogosRepository {
     );
   }
 
-  async upsertBatchClaveUnidad(data: Record<string, string>[]): Promise<void> {
+  async upsertBatchClaveUnidad(data: ClaveUnidadRow[]): Promise<void> {
     await this.executeBatchUpsert(
       CATALOGOS_QUERIES.UPSERT_CLAVE_UNIDAD,
       data,
@@ -277,7 +284,7 @@ export class CatalogosRepository implements ICatalogosRepository {
     );
   }
 
-  async upsertBatchUsoCfdi(data: Record<string, string>[]): Promise<void> {
+  async upsertBatchUsoCfdi(data: UsoCfdiRow[]): Promise<void> {
     await this.executeBatchUpsert(
       CATALOGOS_QUERIES.UPSERT_USO_CFDI,
       data,
@@ -290,7 +297,7 @@ export class CatalogosRepository implements ICatalogosRepository {
     );
   }
 
-  async upsertBatchFormaPago(data: Record<string, string>[]): Promise<void> {
+  async upsertBatchFormaPago(data: FormaPagoRow[]): Promise<void> {
     await this.executeBatchUpsert(
       CATALOGOS_QUERIES.UPSERT_FORMA_PAGO,
       data,
@@ -298,9 +305,7 @@ export class CatalogosRepository implements ICatalogosRepository {
     );
   }
 
-  async upsertBatchRegimenFiscal(
-    data: Record<string, string>[],
-  ): Promise<void> {
+  async upsertBatchRegimenFiscal(data: RegimenFiscalRow[]): Promise<void> {
     await this.executeBatchUpsert(
       CATALOGOS_QUERIES.UPSERT_REGIMEN_FISCAL,
       data,
@@ -313,7 +318,7 @@ export class CatalogosRepository implements ICatalogosRepository {
     );
   }
 
-  async upsertBatchMetodoPago(data: Record<string, string>[]): Promise<void> {
+  async upsertBatchMetodoPago(data: MetodoPagoRow[]): Promise<void> {
     await this.executeBatchUpsert(
       CATALOGOS_QUERIES.UPSERT_METODO_PAGO,
       data,
@@ -321,7 +326,7 @@ export class CatalogosRepository implements ICatalogosRepository {
     );
   }
 
-  async upsertBatchTipoRelacion(data: Record<string, string>[]): Promise<void> {
+  async upsertBatchTipoRelacion(data: TipoRelacionRow[]): Promise<void> {
     await this.executeBatchUpsert(
       CATALOGOS_QUERIES.UPSERT_TIPO_RELACION,
       data,

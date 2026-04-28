@@ -123,9 +123,11 @@ export const envValidationSchema = Joi.object({
     .length(64)
     .required()
     .messages({
-      'any.required': 'CSD_ENCRYPTION_KEY es requerida. Generar con: ' +
-        'node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"',
-      'string.length': 'CSD_ENCRYPTION_KEY debe tener exactamente 64 caracteres hex (32 bytes)',
+      'any.required':
+        'CSD_ENCRYPTION_KEY es requerida. Generar con: ' +
+        "node -e \"console.log(require('crypto').randomBytes(32).toString('hex'))\"",
+      'string.length':
+        'CSD_ENCRYPTION_KEY debe tener exactamente 64 caracteres hex (32 bytes)',
       'string.hex': 'CSD_ENCRYPTION_KEY debe ser una cadena hexadecimal válida',
     }),
 });

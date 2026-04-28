@@ -1,4 +1,10 @@
-import { Injectable, Inject, Logger, HttpStatus, Optional } from '@nestjs/common';
+import {
+  Injectable,
+  Inject,
+  Logger,
+  HttpStatus,
+  Optional,
+} from '@nestjs/common';
 import { I_TICKETS_REPOSITORY } from '../interfaces/tickets-repository.interface';
 import type { ITicketsRepository } from '../interfaces/tickets-repository.interface';
 import { QueryTicketDto } from '../dtos';
@@ -50,15 +56,17 @@ export class TicketsQueryService {
 
   async getStats(empresaId: string): Promise<TicketStats> {
     const cacheKey = `tickets:stats:${empresaId}`;
-    
+
     // Intentar leer del cache — falla silenciosamente si Redis no disponible
     if (this.redis) {
       try {
         const cached = await this.redis.get(cacheKey);
         if (cached) return JSON.parse(cached) as TicketStats;
       } catch (err) {
-        this.logger.warn('Redis cache read failed, falling back to DB', 
-          (err as Error).message);
+        this.logger.warn(
+          'Redis cache read failed, falling back to DB',
+          (err as Error).message,
+        );
       }
     }
 

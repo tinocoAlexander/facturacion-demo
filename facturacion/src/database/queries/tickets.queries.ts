@@ -69,7 +69,7 @@ export const TICKET_QUERIES = {
     FROM tickets
     WHERE empresa_id = $1
   `,
-  
+
   // Nueva: reemplaza el SQL dinámico inline
   // Nota: la query dinámica con filtros opcionales se maneja con un helper,
   // no con concatenación de strings — ver instrucciones abajo
@@ -80,7 +80,7 @@ export const TICKET_QUERIES = {
     FROM tickets
     WHERE empresa_id = $1
   `,
-  
+
   // Nueva: insert de ticket
   INSERT_TICKET: `
     INSERT INTO tickets (
@@ -89,7 +89,7 @@ export const TICKET_QUERIES = {
     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
     RETURNING *
   `,
-  
+
   // Nueva: insert de items (usa unnest para batch eficiente)
   INSERT_TICKET_ITEMS: `
     INSERT INTO ticket_items (
@@ -100,5 +100,5 @@ export const TICKET_QUERIES = {
       $2::text[], $3::numeric[], $4::numeric[], $5::numeric[], $6::numeric[],
       $7::numeric[], $8::numeric[], $9::text[], $10::text[], $11::text[], $12::smallint[]
     )
-  `
+  `,
 } as const;
